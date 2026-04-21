@@ -1,0 +1,161 @@
+package runtime
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"time"
+
+	"llm_aggregator/internal/aggregator"
+	"llm_aggregator/internal/llm"
+	"llm_aggregator/internal/output"
+	"llm_aggregator/internal/processor"
+)
+
+// Runtime holds the execution context for the aggregator
+type Runtime struct {
+	// Configuration
+	FeedsFile          string
+	MaxArticlesPerFeed int
+	MaxDaysOld         int
+	MaxTotalArticles   int
+	IncludeKeywords    []string
+	ExcludeKeywords    []string
+	APIKey             string
+	Model              string
+	MaxTokens          int
+	Temperature        float64
+	Prompt             string
+	SystemPrompt       string
+	Output             string
+	OutputFile         string
+	IncludeArticles    bool
+
+	// State
+	Articles []map[string]any
+	Summary  string
+	Error    error
+}
+
+// NewRuntime creates a new runtime with default values
+func NewRuntime() *Runtime {
+	return &Runtime{
+		MaxArticlesPerFeed: 10,
+		MaxDaysOld:         7,
+		MaxTotalArticles:   50,
+		Model:              "deepseek-chat",
+		MaxTokens:          2000,
+		Temperature:        0.7,
+		Output:             "text",
+		SystemPrompt:       "You are a helpful assistant that summarises news articles.",
+	}
+}
+
+// Execute runs the full aggregation pipeline
+func (r *Runtime) Execute(ctx context.Context) error {
+	// Step 1: Aggregate feeds
+	feedAgg := aggregator.NewFeedAggregator(
+		r.MaxArticlesPerFeed,
+		r.MaxDaysOld,
+		5000, // max content length
+	)
+
+	articles, err := feedAgg.ParseFeedsFromFile(r.FeedsFile)
+	if err != nil {
+		return fmt.Errorf("error aggregating feeds: %w", err)
+	}
+
+	if len(articles) == 0 {
+		return fmt.Errorf("no articles found")
+	}
+
+	// Step 2: Process content
+	contentProc := processor.NewContentProcessor(
+		r.MaxTotalArticles,
+		3000, // max content per article
+		r.IncludeKeywords,
+		r.ExcludeKeywords,
+	)
+
+	processedArticles := contentProc.ProcessArticles(articles, "date", true)
+
+	if len(processedArticles) == 0 {
+		return fmt.Errorf("no articles passed filtering")
+	}
+
+	r.Articles = processedArticles
+
+	// Step 3: Initialise Deepseek client
+	deepseek, err := llm.NewDeepseekClient(
+		r.APIKey,
+		"", // default base URL
+		r.Model,
+		r.MaxTokens,
+		r.Temperature,
+	)
+	if err != nil {
+		return fmt.Errorf("error initialising Deepseek client: %w", err)
+	}
+
+	// Step 4: Get summary from Deepseek
+	summary, err := deepseek.SummariseArticles(
+		processedArticles,
+		r.Prompt,
+		r.SystemPrompt,
+	)
+	if err != nil {
+		return fmt.Errorf("error getting summary from Deepseek: %w", err)
+	}
+
+	r.Summary = summary
+	return nil
+}
+
+// WriteOutput writes the formatted output to the specified writer
+func (r *Runtime) WriteOutput(writer io.Writer) error {
+	formatter, err := output.NewFormatter(r.Output)
+	if err != nil {
+		return fmt.Errorf("error creating formatter: %w", err)
+	}
+
+	outputData := map[string]any{
+		"title":          fmt.Sprintf("LLM Aggregator Summary - %s", time.Now().Format("2006-01-02 15:04")),
+		"prompt":         r.Prompt,
+		"model":          r.Model,
+		"articles_count": len(r.Articles),
+		"summary":        r.Summary,
+		"timestamp":      time.Now().Format(time.RFC3339),
+	}
+
+	if r.IncludeArticles {
+		outputData["articles"] = r.Articles
+	}
+
+	formattedOutput, err := formatter.FormatData(outputData)
+	if err != nil {
+		return fmt.Errorf("error formatting output: %w", err)
+	}
+
+	if _, err := fmt.Fprint(writer, formattedOutput); err != nil {
+		return fmt.Errorf("error writing output: %w", err)
+	}
+
+	return nil
+}
+
+// WriteOutputToFile writes the output to the specified file
+func (r *Runtime) WriteOutputToFile() error {
+	if r.OutputFile == "" {
+		return r.WriteOutput(os.Stdout)
+	}
+
+	file, err := os.Create(r.OutputFile)
+	if err != nil {
+		return fmt.Errorf("error creating output file: %w", err)
+	}
+	defer file.Close()
+
+	return r.WriteOutput(file)
+}
+
