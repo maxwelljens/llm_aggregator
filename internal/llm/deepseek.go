@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"llm_aggregator/internal/progress"
+
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )
@@ -17,6 +19,7 @@ type DeepseekClient struct {
 	model       string
 	maxTokens   int
 	temperature float64
+	logger      *progress.Context
 }
 
 // NewDeepseekClient creates a new Deepseek client.
@@ -57,14 +60,17 @@ func NewDeepseekClient(apiKey, baseURL, model string, maxTokens int, temperature
 		option.WithBaseURL(baseURL),
 	)
 
-	fmt.Printf("Initialised Deepseek client with model: %s\n", model)
-
 	return &DeepseekClient{
 		client:      client,
 		model:       model,
 		maxTokens:   maxTokens,
 		temperature: temperature,
 	}, nil
+}
+
+// SetLogger sets the logger for the Deepseek client
+func (dc *DeepseekClient) SetLogger(logger *progress.Context) {
+	dc.logger = logger
 }
 
 // SummariseArticles summarises a list of articles based on user prompt.
@@ -168,7 +174,9 @@ If relevant, note any patterns, contradictions, or notable developments.`,
 func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMessageParamUnion) (string, error) {
 	ctx := context.Background()
 
-	fmt.Printf("Calling Deepseek API with model: %s\n", dc.model)
+	if dc.logger != nil {
+		dc.logger.Logf("Calling Deepseek API with model: %s", dc.model)
+	}
 
 	response, err := dc.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model:       dc.model,
@@ -200,11 +208,13 @@ func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMe
 	outputText := response.Choices[0].Message.Content
 
 	// Print token usage
-	fmt.Printf(
-		"Deepseek API response: %d prompt tokens, %d completion tokens\n",
-		response.Usage.PromptTokens,
-		response.Usage.CompletionTokens,
-	)
+	if dc.logger != nil {
+		dc.logger.Logf(
+			"Deepseek API response: %d prompt tokens, %d completion tokens",
+			response.Usage.PromptTokens,
+			response.Usage.CompletionTokens,
+		)
+	}
 
 	return outputText, nil
 }

@@ -41,7 +41,7 @@ type Args struct {
 	// System options
 	SystemPrompt string `arg:"--system-prompt" help:"Custom system prompt for Deepseek"`
 	TUI          bool   `arg:"--tui" help:"Enable TUI interface with progress bar"`
-	Verbose      bool   `arg:"-v,--verbose" help:"Enable verbose logging"`
+	Verbose      bool   `arg:"-v,--verbose" help:"Show verbose output"`
 	ShowVersion  bool   `arg:"--version" help:"Show version"`
 }
 
@@ -115,4 +115,3 @@ func ParseArgs() (*Args, error) {
 
 	return &args, nil
 }
-

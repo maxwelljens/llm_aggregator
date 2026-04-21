@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"llm_aggregator/internal/aggregator"
+	"llm_aggregator/internal/progress"
 )
 
 // ContentProcessor processes and prepares aggregated content for LLM analysis.
@@ -15,6 +16,7 @@ type ContentProcessor struct {
 	maxContentPerArticle int
 	filterKeywords       []string
 	excludeKeywords      []string
+	logger               *progress.Context
 }
 
 // NewContentProcessor creates a new ContentProcessor with the specified options.
@@ -38,10 +40,17 @@ func NewContentProcessor(maxTotalArticles, maxContentPerArticle int, filterKeywo
 	}
 }
 
+// SetLogger sets the logger for the processor
+func (cp *ContentProcessor) SetLogger(logger *progress.Context) {
+	cp.logger = logger
+}
+
 // ProcessArticles processes articles: filter, sort, and prepare for LLM.
 func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sortBy string, reverse bool) []map[string]any {
 	if len(articles) == 0 {
-		fmt.Println("Warning: No articles to process")
+		if cp.logger != nil {
+			cp.logger.Logf("Warning: No articles to process")
+		}
 		return []map[string]any{}
 	}
 
@@ -53,14 +62,18 @@ func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sort
 
 	// Limit total articles
 	if len(sortedArticles) > cp.maxTotalArticles {
-		fmt.Printf("Limiting articles from %d to %d\n", len(sortedArticles), cp.maxTotalArticles)
+		if cp.logger != nil {
+			cp.logger.Logf("Limiting articles from %d to %d", len(sortedArticles), cp.maxTotalArticles)
+		}
 		sortedArticles = sortedArticles[:cp.maxTotalArticles]
 	}
 
 	// Prepare articles for LLM
 	processed := cp.prepareForLLM(sortedArticles)
 
-	fmt.Printf("Processed %d articles (from %d original)\n", len(processed), len(articles))
+	if cp.logger != nil {
+		cp.logger.Logf("Processed %d articles (from %d original)", len(processed), len(articles))
+	}
 
 	return processed
 }
@@ -80,7 +93,9 @@ func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*ag
 			articleText := strings.ToLower(article.Title + " " + article.Content)
 			for _, keyword := range cp.excludeKeywords {
 				if strings.Contains(articleText, keyword) {
-					fmt.Printf("Excluding article due to keyword '%s': %s\n", keyword, article.Title)
+					if cp.logger != nil {
+						cp.logger.Logf("Excluding article due to keyword '%s': %s", keyword, article.Title)
+					}
 					include = false
 					break
 				}
@@ -104,10 +119,12 @@ func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*ag
 		}
 	}
 
-	fmt.Printf(
-		"Filtered %d articles to %d (inclusion: %v, exclusion: %v)\n",
-		len(articles), len(filtered), cp.filterKeywords, cp.excludeKeywords,
-	)
+	if cp.logger != nil {
+		cp.logger.Logf(
+			"Filtered %d articles to %d (inclusion: %v, exclusion: %v)",
+			len(articles), len(filtered), cp.filterKeywords, cp.excludeKeywords,
+		)
+	}
 
 	return filtered
 }
@@ -226,7 +243,9 @@ func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any) int {
 	// Rough estimate: 1 token ≈ 4 characters for English
 	estimatedTokens := totalChars / 4
 
-	fmt.Printf("Estimated tokens: %d (~%d chars)\n", estimatedTokens, totalChars)
+	if cp.logger != nil {
+		cp.logger.Logf("Estimated tokens: %d (~%d chars)", estimatedTokens, totalChars)
+	}
 
 	return estimatedTokens
 }
@@ -281,10 +300,12 @@ func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxT
 
 		// Check if adding this article would exceed limit
 		if currentTokens+articleTokens > maxTotalTokens {
-			fmt.Printf(
-				"Reached token limit (%d). Included %d of %d articles.\n",
-				maxTotalTokens, i, len(articles),
-			)
+			if cp.logger != nil {
+				cp.logger.Logf(
+					"Reached token limit (%d). Included %d of %d articles.",
+					maxTotalTokens, i, len(articles),
+				)
+			}
 			break
 		}
 
@@ -294,7 +315,9 @@ func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxT
 
 	context := strings.Join(contextParts, "\n---\n")
 
-	fmt.Printf("Created context with %d articles, ~%d tokens\n", len(contextParts), currentTokens)
+	if cp.logger != nil {
+		cp.logger.Logf("Created context with %d articles, ~%d tokens", len(contextParts), currentTokens)
+	}
 
 	return context
 }

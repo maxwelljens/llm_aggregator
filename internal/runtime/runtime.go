@@ -11,6 +11,7 @@ import (
 	"llm_aggregator/internal/llm"
 	"llm_aggregator/internal/output"
 	"llm_aggregator/internal/processor"
+	"llm_aggregator/internal/progress"
 )
 
 // Runtime holds the execution context for the aggregator
@@ -31,11 +32,15 @@ type Runtime struct {
 	Output             string
 	OutputFile         string
 	IncludeArticles    bool
+	Verbose            bool
 
 	// State
 	Articles []map[string]any
 	Summary  string
 	Error    error
+	
+	// Logger for verbose output
+	logger *progress.Context
 }
 
 // NewRuntime creates a new runtime with default values
@@ -54,11 +59,19 @@ func NewRuntime() *Runtime {
 
 // Execute runs the full aggregation pipeline
 func (r *Runtime) Execute(ctx context.Context) error {
+	// Setup logger based on verbose flag
+	if r.Verbose {
+		r.logger = progress.NewContext(progress.NewSimpleLogger(os.Stdout, true))
+	} else {
+		r.logger = progress.NewContext(&progress.NoopLogger{})
+	}
+
 	// Step 1: Aggregate feeds
-	feedAgg := aggregator.NewFeedAggregator(
+	feedAgg := aggregator.NewFeedAggregatorWithProgress(
 		r.MaxArticlesPerFeed,
 		r.MaxDaysOld,
 		5000, // max content length
+		r.logger,
 	)
 
 	articles, err := feedAgg.ParseFeedsFromFile(r.FeedsFile)
@@ -77,6 +90,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.IncludeKeywords,
 		r.ExcludeKeywords,
 	)
+	contentProc.SetLogger(r.logger)
 
 	processedArticles := contentProc.ProcessArticles(articles, "date", true)
 
@@ -97,6 +111,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error initialising Deepseek client: %w", err)
 	}
+	deepseek.SetLogger(r.logger)
 
 	// Step 4: Get summary from Deepseek
 	summary, err := deepseek.SummariseArticles(

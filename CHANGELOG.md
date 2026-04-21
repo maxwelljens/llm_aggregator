@@ -8,6 +8,11 @@ Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+- Moved all progress and status messages behind `-v/--verbose` flag
+- Default CLI mode is now silent except for final output and errors
+- Components (aggregator, processor, LLM client) use logger interface controlled by verbose flag
+
 ## [0.1.0] - 2026-04-21
 
 ### Added

@@ -67,25 +67,13 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 		}
 	}
 
-	if fa.progressCtx != nil {
-		fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), filePath)
-	} else {
-		fmt.Printf("Found %d feed URLs in %s\n", len(feedURLs), filePath)
-	}
+	fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), filePath)
 
 	for i, feedURL := range feedURLs {
-		if fa.progressCtx != nil {
-			fa.progressCtx.Logf("Processing feed %d/%d: %s", i+1, len(feedURLs), feedURL)
-		} else {
-			fmt.Printf("Processing feed %d/%d: %s\n", i+1, len(feedURLs), feedURL)
-		}
+		fa.progressCtx.Logf("Processing feed %d/%d: %s", i+1, len(feedURLs), feedURL)
 		feedArticles, err := fa.ParseFeed(feedURL)
 		if err != nil {
-			if fa.progressCtx != nil {
-				fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
-			} else {
-				fmt.Printf("Warning: Failed to parse feed %s: %v\n", feedURL, err)
-			}
+			fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
 			continue
 		}
 		articles = append(articles, feedArticles...)
@@ -109,11 +97,7 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 		feedTitle = feedURL
 	}
 
-	if fa.progressCtx != nil {
-		fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
-	} else {
-		fmt.Printf("Parsing feed: %s (%d entries)\n", feedTitle, len(feed.Items))
-	}
+	fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
 
 	var cutoffTime time.Time
 	if fa.maxDaysOld > 0 {
@@ -125,11 +109,7 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 	for i, item := range feed.Items[:maxItems] {
 		article, err := fa.extractArticle(item, feedTitle, cutoffTime)
 		if err != nil {
-			if fa.progressCtx != nil {
-				fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, feedURL, err)
-			} else {
-				fmt.Printf("Warning: Failed to extract article %d from %s: %v\n", i, feedURL, err)
-			}
+			fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, feedURL, err)
 			continue
 		}
 		if article != nil {
@@ -157,11 +137,7 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 
 	// Check if article is too old
 	if !cutoffTime.IsZero() && !published.IsZero() && published.Before(cutoffTime) {
-		if fa.progressCtx != nil {
-			fa.progressCtx.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
-		} else {
-			fmt.Printf("Skipping old article: %s (%s)\n", title, published.Format("2006-01-02"))
-		}
+		fa.progressCtx.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
 		return nil, nil
 	}
 

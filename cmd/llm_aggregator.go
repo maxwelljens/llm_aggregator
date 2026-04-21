@@ -49,6 +49,7 @@ func main() {
 	rt.Output = args.Output
 	rt.OutputFile = args.OutputFile
 	rt.IncludeArticles = args.IncludeArticles
+	rt.Verbose = args.Verbose
 
 	// Validate API key
 	if rt.APIKey == "" {
@@ -136,9 +137,8 @@ func runWithTUI(rt *runtime.Runtime) {
 }
 
 func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
-	if verbose {
-		fmt.Printf("Aggregating feeds from: %s\n", rt.FeedsFile)
-	}
+	// Set verbose flag on runtime
+	rt.Verbose = verbose
 
 	// Execute the runtime
 	err := rt.Execute(context.Background())
@@ -147,29 +147,17 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
 		os.Exit(1)
 	}
 
-	if verbose {
-		fmt.Printf("Aggregated %d articles\n", len(rt.Articles))
-		fmt.Printf("Requesting summary from DeepSeek with model: %s\n", rt.Model)
-	}
-
 	// Write output
 	if rt.OutputFile != "" {
 		if err := rt.WriteOutputToFile(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing output: %v\n", err)
 			os.Exit(1)
 		}
-		if verbose {
-			fmt.Printf("Output written to: %s\n", rt.OutputFile)
-		}
 	} else {
 		if err := rt.WriteOutput(os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "Error writing output: %v\n", err)
 			os.Exit(1)
 		}
-	}
-
-	if verbose {
-		fmt.Println("Processing completed successfully")
 	}
 }
 
