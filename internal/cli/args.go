@@ -28,7 +28,7 @@ type Args struct {
 	ExcludeKeywords string `arg:"--exclude-keywords" help:"Comma-separated list of keywords to exclude (case-insensitive)"`
 
 	// Deepseek API options
-	APIKey      string  `arg:"--api-key" help:"Deepseek API key (default: read from DEEPSEEK_API_KEY env var)"`
+	APIKey      string  `arg:"--api-key" help:"OpenAI-compatible API key (default: read from LLM_AGGREGATOR_API_KEY env var)"`
 	Model       string  `arg:"--model" help:"Deepseek model to use" default:"deepseek-chat"`
 	MaxTokens   int     `arg:"--max-tokens" help:"Maximum tokens in response" default:"4000"`
 	Temperature float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)" default:"0.7"`
@@ -68,7 +68,7 @@ Examples:
   llm_aggregator --feeds-file feeds.txt --prompt "Linux news" --include-keywords linux,opensource
 
 Environment Variables:
-  DEEPSEEK_API_KEY: Your Deepseek API key (required if not provided via --api-key)`
+  LLM_AGGREGATOR_API_KEY: Your Deepseek API key (required if not provided via --api-key)`
 }
 
 // ParseKeywords parses comma-separated keywords string into list.

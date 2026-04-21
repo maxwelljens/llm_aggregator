@@ -27,15 +27,15 @@ elapsed time while the aggregation runs.
 
 By default, `llm_aggregator` reads a list of RSS feed URLs, fetches the
 articles, filters them by date and keywords, and sends a summary request to
-Deepseek. The resulting output is printed to the terminal in your chosen format
+the LLM. The resulting output is printed to the terminal in your chosen format
 (text, markdown, or JSON).
 
 ### Basic Options
 
     --feeds-file FILE         Path to file containing RSS feed URLs (one per line)
     --prompt PROMPT           User prompt for summarisation/analysis
-    --api-key KEY             Deepseek API key (default: read from DEEPSEEK_API_KEY env var)
-    --model MODEL             Deepseek model to use (default: deepseek-chat)
+    --api-key KEY             API key (default: read from $LLM_AGGREGATOR_API_KEY)
+    --model MODEL             Model to use (default: deepseek-chat)
     --max-tokens N            Maximum tokens in response (default: 4000)
     --output FORMAT           Output format: text, markdown, or json (default: text)
     --output-file FILE        Write output to FILE instead of stdout
@@ -76,9 +76,9 @@ llm_aggregator --feeds-file feeds.txt --prompt "Analyse AI developments" \
 llm_aggregator --feeds-file feeds.txt --prompt "Linux news" \
     --include-keywords linux,opensource --max-days-old 3
 
-# Use a custom Deepseek model and higher token limit
+# Use a custom model and higher token limit
 llm_aggregator --feeds-file feeds.txt --prompt "Code analysis" \
-    --model deepseek-coder --max-tokens 8000
+    --model deepseek-reasoner --max-tokens 8000
 
 # Show version information
 llm_aggregator --version
@@ -113,34 +113,66 @@ When the `--tui` flag is used, the entire process is wrapped in a `bubbletea`
 TUI that shows a colourful progress bar, live article counters, and elapsed
 time (WIP).
 
-## Dependencies
+## Configuration
 
-`llm_aggregator` is written in Go and uses the following libraries:
+`llm_aggregator` supports multiple configuration sources with the following precedence order (highest to lowest):
 
-* [`gofeed`](https://github.com/mmcdole/gofeed): a robust RSS/Atom/JSON feed parser
-* [`openai‑go`](https://github.com/openai/openai-go): the official OpenAI Go
-  SDK, configured to work with Deepseek’s compatible API
-* [`bubbletea`](https://github.com/charmbracelet/bubbletea): a TUI framework
-  for building terminal applications
-* [`lipgloss`](https://github.com/charmbracelet/lipgloss): a library for
-  styling terminal output (colours, borders, alignment)
-* [`go‑arg`](https://github.com/alexflint/go-arg): struct‑based argument
-  parsing with automatic help and version flags
-* [`goquery`](https://github.com/PuerkitoBio/goquery): a jQuery‑like HTML
-  scraping library (used as a fallback when feed content is minimal)
+1. **Command‑line arguments** – Override everything
+2. **Environment variables** – Start with `LLM_AGGREGATOR_` prefix
+3. **Configuration file** – `~/.config/llm_aggregator/config.toml`
+4. **Built‑in defaults**
 
-## How do I build `llm_aggregator`?
+### Configuration file
 
-`llm_aggregator` can be built with a standard Go toolchain:
+Create a TOML file at `~/.config/llm_aggregator/config.toml` with the following structure:
 
-    go build ./cmd/llm_aggregator.go
+```toml
+# Feed aggregation options
+max_articles_per_feed = 10
+max_days_old = 7
+max_total_articles = 20
 
-## Configuration file
+# Content filtering (comma-separated keywords)
+# include_keywords = "linux,opensource"
+# exclude_keywords = "windows,microsoft"
 
-A configuration file is not yet implemented; all options are passed via
-command‑line arguments or environment variables. The API key can be provided
-either with `--api-key` or by setting the `DEEPSEEK_API_KEY` environment
-variable.
+# Deepseek API options
+# api_key = "your_api_key_here"  # Can also be set via LLM_AGGREGATOR_API_KEY env var
+model = "deepseek-chat"
+max_tokens = 4000
+temperature = 0.7
+
+# System prompt for Deepseek API
+system_prompt = """You are an expert analyst and summariser.
+You analyse content from multiple sources and provide
+concise, insightful summaries based on user requests.
+Focus on key points, trends, and important information."""
+
+# Output options
+output = "text"  # Options: text, json, markdown
+# output_file = ""  # Optional output file path
+include_articles = false
+```
+
+### Environment variables
+
+All configuration options can also be set via environment variables with the `LLM_AGGREGATOR_` prefix:
+
+- `LLM_AGGREGATOR_API_KEY` – Deepseek API key
+- `LLM_AGGREGATOR_MODEL` – Model name (default: "deepseek-chat")
+- `LLM_AGGREGATOR_MAX_TOKENS` – Maximum tokens in response (default: 4000)
+- `LLM_AGGREGATOR_TEMPERATURE` – Sampling temperature (default: 0.7)
+- `LLM_AGGREGATOR_SYSTEM_PROMPT` – Custom system prompt
+- `LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED` – Maximum articles per feed (default: 10)
+- `LLM_AGGREGATOR_MAX_DAYS_OLD` – Maximum article age in days (default: 7)
+- `LLM_AGGREGATOR_MAX_TOTAL_ARTICLES` – Maximum total articles (default: 20)
+- `LLM_AGGREGATOR_INCLUDE_KEYWORDS` – Comma‑separated include keywords
+- `LLM_AGGREGATOR_EXCLUDE_KEYWORDS` – Comma‑separated exclude keywords
+- `LLM_AGGREGATOR_OUTPUT` – Output format (default: "text")
+- `LLM_AGGREGATOR_OUTPUT_FILE` – Output file path
+- `LLM_AGGREGATOR_INCLUDE_ARTICLES` – Include articles in JSON output (true/false)
+
+The API key can be provided via `--api‑key`, `LLM_AGGREGATOR_API_KEY` environment variable, or in the configuration file.
 
 ## Example feeds file
 
@@ -155,6 +187,30 @@ For example:
 Then run:
 
     llm_aggregator --feeds-file feeds.txt --prompt "Summarise the top tech stories"
+
+## Dependencies
+
+`llm_aggregator` is written in Go and uses the following libraries:
+
+* [`gofeed`](https://github.com/mmcdole/gofeed): a robust RSS/Atom/JSON feed parser
+* [`openai‑go`](https://github.com/openai/openai-go): the official OpenAI API
+library for Go
+* [`bubbletea`](https://github.com/charmbracelet/bubbletea): a TUI framework
+  for building terminal applications
+* [`lipgloss`](https://github.com/charmbracelet/lipgloss): a library for
+  styling terminal output (colours, borders, alignment)
+* [`go‑arg`](https://github.com/alexflint/go-arg): struct‑based argument
+  parsing with automatic help and version flags
+* [`goquery`](https://github.com/PuerkitoBio/goquery): a jQuery‑like HTML
+  scraping library (used as a fallback when feed content is minimal)
+* [`viper`](https://github.com/spf13/viper): library used for reading and
+  writing to configuration files.
+
+## How do I build `llm_aggregator`?
+
+`llm_aggregator` can be built with a standard Go toolchain:
+
+    go build ./cmd/llm_aggregator.go
 
 ## Licence
 

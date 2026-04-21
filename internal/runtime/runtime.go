@@ -53,7 +53,7 @@ func NewRuntime() *Runtime {
 		MaxTokens:          2000,
 		Temperature:        0.7,
 		Output:             "text",
-		SystemPrompt:       "You are a helpful assistant that summarises news articles.",
+		// SystemPrompt left empty to be filled from config or use deepseek default
 	}
 }
 

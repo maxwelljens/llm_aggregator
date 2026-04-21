@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"llm_aggregator/internal/cli"
+	"llm_aggregator/internal/config"
 	"llm_aggregator/internal/runtime"
 	"llm_aggregator/internal/tui"
 
@@ -22,6 +23,15 @@ var (
 func main() {
 	cli.BuildDate = buildDate
 	cli.Version = version
+	
+	// Load configuration from file and environment variables
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not load configuration: %v\n", err)
+		// Continue with defaults
+		cfg = config.DefaultConfig()
+	}
+
 	// Parse command line arguments
 	args, err := cli.ParseArgs()
 	if err != nil {
@@ -32,28 +42,14 @@ func main() {
 	// Create runtime configuration
 	rt := runtime.NewRuntime()
 	rt.FeedsFile = args.FeedsFile
-	rt.MaxArticlesPerFeed = args.MaxArticlesPerFeed
-	rt.MaxDaysOld = args.MaxDaysOld
-	rt.MaxTotalArticles = args.MaxTotalArticles
-	rt.IncludeKeywords = cli.ParseKeywords(args.IncludeKeywords)
-	rt.ExcludeKeywords = cli.ParseKeywords(args.ExcludeKeywords)
-	rt.APIKey = args.APIKey
-	if rt.APIKey == "" {
-		rt.APIKey = os.Getenv("DEEPSEEK_API_KEY")
-	}
-	rt.Model = args.Model
-	rt.MaxTokens = args.MaxTokens
-	rt.Temperature = args.Temperature
 	rt.Prompt = args.Prompt
-	rt.SystemPrompt = args.SystemPrompt
-	rt.Output = args.Output
-	rt.OutputFile = args.OutputFile
-	rt.IncludeArticles = args.IncludeArticles
-	rt.Verbose = args.Verbose
+	
+	// Apply configuration with precedence: CLI args > Environment vars > Config file > Defaults
+	applyConfiguration(rt, cfg, args)
 
 	// Validate API key
 	if rt.APIKey == "" {
-		fmt.Fprintln(os.Stderr, "Error: DeepSeek API key is required. Set via --api-key or DEEPSEEK_API_KEY environment variable.")
+		fmt.Fprintln(os.Stderr, "Error: OpenAI-compatible API key is required. Set via --api-key, LLM_AGGREGATOR_API_KEY environment variable, or config file.")
 		os.Exit(1)
 	}
 
@@ -63,6 +59,92 @@ func main() {
 	} else {
 		runWithoutTUI(rt, args.Verbose)
 	}
+}
+
+// applyConfiguration applies configuration with proper precedence
+func applyConfiguration(rt *runtime.Runtime, cfg *config.Config, args *cli.Args) {
+	// Feed aggregation options - CLI args override config
+	if args.MaxArticlesPerFeed != 0 {
+		rt.MaxArticlesPerFeed = args.MaxArticlesPerFeed
+	} else if cfg.MaxArticlesPerFeed != 0 {
+		rt.MaxArticlesPerFeed = cfg.MaxArticlesPerFeed
+	}
+	
+	if args.MaxDaysOld != 0 {
+		rt.MaxDaysOld = args.MaxDaysOld
+	} else if cfg.MaxDaysOld != 0 {
+		rt.MaxDaysOld = cfg.MaxDaysOld
+	}
+	
+	if args.MaxTotalArticles != 0 {
+		rt.MaxTotalArticles = args.MaxTotalArticles
+	} else if cfg.MaxTotalArticles != 0 {
+		rt.MaxTotalArticles = cfg.MaxTotalArticles
+	}
+	
+	// Content filtering - CLI args override config
+	if args.IncludeKeywords != "" {
+		rt.IncludeKeywords = cli.ParseKeywords(args.IncludeKeywords)
+	} else if cfg.IncludeKeywords != "" {
+		rt.IncludeKeywords = cli.ParseKeywords(cfg.IncludeKeywords)
+	}
+	
+	if args.ExcludeKeywords != "" {
+		rt.ExcludeKeywords = cli.ParseKeywords(args.ExcludeKeywords)
+	} else if cfg.ExcludeKeywords != "" {
+		rt.ExcludeKeywords = cli.ParseKeywords(cfg.ExcludeKeywords)
+	}
+	
+	// Deepseek API options - CLI args override config
+	if args.APIKey != "" {
+		rt.APIKey = args.APIKey
+	} else if cfg.APIKey != "" {
+		rt.APIKey = cfg.APIKey
+	} else {
+		// Fall back to environment variable
+		rt.APIKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
+	}
+	
+	if args.Model != "" {
+		rt.Model = args.Model
+	} else if cfg.Model != "" {
+		rt.Model = cfg.Model
+	}
+	
+	if args.MaxTokens != 0 {
+		rt.MaxTokens = args.MaxTokens
+	} else if cfg.MaxTokens != 0 {
+		rt.MaxTokens = cfg.MaxTokens
+	}
+	
+	if args.Temperature != 0 {
+		rt.Temperature = args.Temperature
+	} else if cfg.Temperature != 0 {
+		rt.Temperature = cfg.Temperature
+	}
+	
+	// System prompt - CLI args override config
+	if args.SystemPrompt != "" {
+		rt.SystemPrompt = args.SystemPrompt
+	} else if cfg.SystemPrompt != "" {
+		rt.SystemPrompt = cfg.SystemPrompt
+	}
+	
+	// Output options - CLI args override config
+	if args.Output != "" {
+		rt.Output = args.Output
+	} else if cfg.Output != "" {
+		rt.Output = cfg.Output
+	}
+	
+	if args.OutputFile != "" {
+		rt.OutputFile = args.OutputFile
+	} else if cfg.OutputFile != "" {
+		rt.OutputFile = cfg.OutputFile
+	}
+	
+	rt.IncludeArticles = args.IncludeArticles || cfg.IncludeArticles
+	rt.Verbose = args.Verbose
 }
 
 func runWithTUI(rt *runtime.Runtime) {
@@ -160,4 +242,3 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
 		}
 	}
 }
-

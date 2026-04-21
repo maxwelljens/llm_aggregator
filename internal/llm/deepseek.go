@@ -23,7 +23,7 @@ type DeepseekClient struct {
 }
 
 // NewDeepseekClient creates a new Deepseek client.
-// apiKey: Deepseek API key (or read from DEEPSEEK_API_KEY env var)
+// apiKey: Deepseek API key (or read from LLM_AGGREGATOR_API_KEY env var)
 // baseURL: API base URL (defaults to "https://api.deepseek.com")
 // model: Model to use (defaults to "deepseek-chat")
 // maxTokens: Maximum tokens in response (defaults to 4000)
@@ -31,12 +31,12 @@ type DeepseekClient struct {
 func NewDeepseekClient(apiKey, baseURL, model string, maxTokens int, temperature float64) (*DeepseekClient, error) {
 	// Get API key from parameter or environment variable
 	if apiKey == "" {
-		apiKey = os.Getenv("DEEPSEEK_API_KEY")
+		apiKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
 	}
 	if apiKey == "" || strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf(
 			"Deepseek API key is required. " +
-				"Set DEEPSEEK_API_KEY environment variable or pass apiKey parameter",
+				"Set LLM_AGGREGATOR_API_KEY environment variable or pass apiKey parameter",
 		)
 	}
 
@@ -145,9 +145,9 @@ func (dc *DeepseekClient) prepareContext(articles []map[string]any) string {
 
 func (dc *DeepseekClient) createMessages(context, userPrompt, systemPrompt string) []openai.ChatCompletionMessageParamUnion {
 	if systemPrompt == "" {
-		systemPrompt = `You are an expert analyst and summariser. 
-You analyse content from multiple sources and provide 
-concise, insightful summaries based on user requests. 
+		systemPrompt = `You are an expert analyst and summariser.
+You analyse content from multiple sources and provide
+concise, insightful summaries based on user requests.
 Focus on key points, trends, and important information.`
 	}
 
@@ -195,7 +195,7 @@ func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMe
 		} else if strings.Contains(errStr, "500") {
 			return "", fmt.Errorf("Deepseek API server error. Please try again later")
 		} else if strings.Contains(errStr, "404") {
-			return "", fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. Deepseek uses /chat/completions")
+			return "", fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
 		}
 		return "", fmt.Errorf("failed to connect to Deepseek API: %w", err)
 	}

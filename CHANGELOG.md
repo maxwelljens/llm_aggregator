@@ -8,10 +8,53 @@ Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-21
+
+### Added
+
+- **Configuration file support via TOML** (XDG-compliant and cross-platform)
+  - Load settings from `~/.config/llm_aggregator/config.toml`
+  - Supports all aggregation, API, and output options
+  - Example configuration file at `configs/config.example.toml`
+- **Environment variable support with `LLM_AGGREGATOR_` prefix**
+  - All configuration options can be set via environment variables
+  - Precedence order: CLI arguments > environment variables > config file >
+  built‑in defaults
+- New `internal/config` package with Viper integration
+  - `Load()` and `Save()` methods for configuration management
+  - `GetConfigPath()` for XDG‑compliant config file location
+  - `ConfigExists()` to check for existing configuration
+- Comprehensive unit tests for configuration loading, saving, and environment
+  variable precedence (`internal/config/config_test.go`)
+
 ### Changed
+
+- **Environment variable renamed:** `DEEPSEEK_API_KEY` →
+  `LLM_AGGREGATOR_API_KEY`
+- **CLI help text** now reflects the new API key environment variable and
+  general configuration options
+- **Command‑line argument precedence** implemented in `cmd/llm_aggregator.go`
+via `applyConfiguration()`
+- Updated all help text, documentation, and code references
+- `README.md` completely revised with a new "Configuration" section
+
+### Removed
+
+- Global `QuietMode` and `VerboseMode` variables from
+`internal/config/config.go`. Replaced by runtime‑specific configuration in
+`runtime.Runtime` and CLI arguments
+- Hardcoded system prompt in `runtime.NewRuntime()`. Now left empty, allowing
+configuration or client default to be used
+- CLI flags now correctly override config file and environment variables
+
+## [0.2.0] - 2026-04-21
+
+### Changed
+
 - Moved all progress and status messages behind `-v/--verbose` flag
 - Default CLI mode is now silent except for final output and errors
-- Components (aggregator, processor, LLM client) use logger interface controlled by verbose flag
+- Components (aggregator, processor, LLM client) use logger interface
+controlled by verbose flag
 
 ## [0.1.0] - 2026-04-21
 
@@ -32,7 +75,7 @@ Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 - Web content extraction fallback using `goquery` when feed descriptions are minimal
 - Configurable limits: articles per feed, maximum age, total articles
 - Token estimation and API usage logging
-- Environment variable support (`DEEPSEEK_API_KEY`) for authentication
+- Environment variable support (`LLM_AGGREGATOR_API_KEY`) for authentication
 - Example feeds file with technology, programming, and free software sources
 
 ### Changed
