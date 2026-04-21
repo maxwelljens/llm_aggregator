@@ -6,7 +6,23 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-04-21
+
+### Changed 
+
+- **TUI is now fully functional and production-ready**: Replaced the
+work-in-progress TUI implementation with a robust Bubble Tea command pattern:
+  - Runtime execution now uses native `tea.Cmd` instead of manual goroutine
+  orchestration.
+  - Added real-time progress updates via `progress.Progress` interface with
+  stage, substage, and article count messages.
+  - TUI displays a spinner, elapsed time, and final summary inline.
+  - Removed signal handling and channel synchronisation in favour of Bubble
+  Tea's built-in lifecycle.
+  - `TUIProgress` now only sends messages to an existing program, simplifying
+  integration.
+  - Both verbose mode (`SimpleLogger`) and TUI mode share the same
+  `progress.Progress` interface.
 
 ## [0.3.0] - 2026-04-21
 

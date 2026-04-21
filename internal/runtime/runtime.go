@@ -38,9 +38,9 @@ type Runtime struct {
 	Articles []map[string]any
 	Summary  string
 	Error    error
-	
+
 	// Logger for verbose output
-	logger *progress.Context
+	Progress progress.Progress
 }
 
 // NewRuntime creates a new runtime with default values
@@ -53,54 +53,61 @@ func NewRuntime() *Runtime {
 		MaxTokens:          2000,
 		Temperature:        0.7,
 		Output:             "text",
-		// SystemPrompt left empty to be filled from config or use deepseek default
+		Progress:           &progress.NoopLogger{},
 	}
 }
 
 // Execute runs the full aggregation pipeline
 func (r *Runtime) Execute(ctx context.Context) error {
-	// Setup logger based on verbose flag
-	if r.Verbose {
-		r.logger = progress.NewContext(progress.NewSimpleLogger(os.Stdout, true))
-	} else {
-		r.logger = progress.NewContext(&progress.NoopLogger{})
-	}
+	// The logger/progress handler is injected, so we don't create it here.
+	// We wrap it in a context to pass to sub-modules that expect a *progress.Context.
+	progCtx := progress.NewContext(r.Progress)
 
 	// Step 1: Aggregate feeds
+	r.Progress.SetStage("Aggregating feeds")
+	r.Progress.SetSubStage(fmt.Sprintf("Parsing feeds from %s", r.FeedsFile))
+
 	feedAgg := aggregator.NewFeedAggregatorWithProgress(
 		r.MaxArticlesPerFeed,
 		r.MaxDaysOld,
-		5000, // max content length
-		r.logger,
+		5000,    // max content length
+		progCtx, // MODIFIED: Pass the new progress context
 	)
 
 	articles, err := feedAgg.ParseFeedsFromFile(r.FeedsFile)
 	if err != nil {
 		return fmt.Errorf("error aggregating feeds: %w", err)
 	}
-
 	if len(articles) == 0 {
-		return fmt.Errorf("no articles found")
+		return fmt.Errorf("no articles found after parsing feeds")
 	}
+	r.Progress.SetArticleCount(len(articles), 0)
 
 	// Step 2: Process content
+	r.Progress.SetStage("Processing articles")
+	r.Progress.SetSubStage(fmt.Sprintf("Filtering and sorting %d articles", len(articles)))
+
 	contentProc := processor.NewContentProcessor(
 		r.MaxTotalArticles,
 		3000, // max content per article
 		r.IncludeKeywords,
 		r.ExcludeKeywords,
 	)
-	contentProc.SetLogger(r.logger)
+	contentProc.SetLogger(progCtx) // MODIFIED: Pass the new progress context
 
 	processedArticles := contentProc.ProcessArticles(articles, "date", true)
 
 	if len(processedArticles) == 0 {
 		return fmt.Errorf("no articles passed filtering")
 	}
+	r.Progress.SetArticleCount(len(articles), len(articles)-len(processedArticles))
 
 	r.Articles = processedArticles
 
 	// Step 3: Initialise Deepseek client
+	r.Progress.SetStage("Connecting to LLM")
+	r.Progress.SetSubStage(fmt.Sprintf("Using model: %s", r.Model))
+
 	deepseek, err := llm.NewDeepseekClient(
 		r.APIKey,
 		"", // default base URL
@@ -111,9 +118,12 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error initialising Deepseek client: %w", err)
 	}
-	deepseek.SetLogger(r.logger)
+	deepseek.SetLogger(progCtx) // MODIFIED: Pass the new progress context
 
 	// Step 4: Get summary from Deepseek
+	r.Progress.SetStage("Getting summary")
+	r.Progress.SetSubStage(fmt.Sprintf("Sending %d articles to LLM", len(processedArticles)))
+
 	summary, err := deepseek.SummariseArticles(
 		processedArticles,
 		r.Prompt,
@@ -124,6 +134,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	}
 
 	r.Summary = summary
+	r.Progress.SetArticleCount(len(processedArticles), len(processedArticles))
 	return nil
 }
 
@@ -173,4 +184,3 @@ func (r *Runtime) WriteOutputToFile() error {
 
 	return r.WriteOutput(file)
 }
-

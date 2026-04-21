@@ -48,12 +48,19 @@ func (sl *SimpleLogger) Debugf(format string, args ...any) {
 	}
 }
 
+func (sl *SimpleLogger) SetStage(stage string)                {}
+func (sl *SimpleLogger) SetSubStage(stage string)             {}
+func (sl *SimpleLogger) SetArticleCount(total, processed int) {}
+
 // NoopLogger implements Logger with no output
 type NoopLogger struct{}
 
-func (nl *NoopLogger) Logf(format string, args ...any)     {}
-func (nl *NoopLogger) Warningf(format string, args ...any) {}
-func (nl *NoopLogger) Debugf(format string, args ...any)   {}
+func (nl *NoopLogger) Logf(format string, args ...any)      {}
+func (nl *NoopLogger) Warningf(format string, args ...any)  {}
+func (nl *NoopLogger) Debugf(format string, args ...any)    {}
+func (nl *NoopLogger) SetStage(stage string)                {}
+func (nl *NoopLogger) SetSubStage(status string)            {}
+func (nl *NoopLogger) SetArticleCount(total, processed int) {}
 
 // Context provides progress context for components
 type Context struct {
@@ -87,4 +94,3 @@ func (c *Context) Debugf(format string, args ...any) {
 		c.logger.Debugf(format, args...)
 	}
 }
-

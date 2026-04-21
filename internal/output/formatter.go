@@ -250,4 +250,3 @@ func FormatArticleList(articles []*aggregator.Article, formatType string, includ
 
 	return formatter.FormatData(data)
 }
-

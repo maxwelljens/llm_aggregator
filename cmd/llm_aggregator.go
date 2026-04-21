@@ -4,15 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
-
-	"llm_aggregator/internal/cli"
-	"llm_aggregator/internal/config"
-	"llm_aggregator/internal/runtime"
-	"llm_aggregator/internal/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"llm_aggregator/internal/cli"
+	"llm_aggregator/internal/config"
+	"llm_aggregator/internal/progress"
+	"llm_aggregator/internal/runtime"
+	"llm_aggregator/internal/tui"
 )
 
 var (
@@ -23,7 +21,7 @@ var (
 func main() {
 	cli.BuildDate = buildDate
 	cli.Version = version
-	
+
 	// Load configuration from file and environment variables
 	cfg, err := config.Load()
 	if err != nil {
@@ -43,7 +41,7 @@ func main() {
 	rt := runtime.NewRuntime()
 	rt.FeedsFile = args.FeedsFile
 	rt.Prompt = args.Prompt
-	
+
 	// Apply configuration with precedence: CLI args > Environment vars > Config file > Defaults
 	applyConfiguration(rt, cfg, args)
 
@@ -69,32 +67,32 @@ func applyConfiguration(rt *runtime.Runtime, cfg *config.Config, args *cli.Args)
 	} else if cfg.MaxArticlesPerFeed != 0 {
 		rt.MaxArticlesPerFeed = cfg.MaxArticlesPerFeed
 	}
-	
+
 	if args.MaxDaysOld != 0 {
 		rt.MaxDaysOld = args.MaxDaysOld
 	} else if cfg.MaxDaysOld != 0 {
 		rt.MaxDaysOld = cfg.MaxDaysOld
 	}
-	
+
 	if args.MaxTotalArticles != 0 {
 		rt.MaxTotalArticles = args.MaxTotalArticles
 	} else if cfg.MaxTotalArticles != 0 {
 		rt.MaxTotalArticles = cfg.MaxTotalArticles
 	}
-	
+
 	// Content filtering - CLI args override config
 	if args.IncludeKeywords != "" {
 		rt.IncludeKeywords = cli.ParseKeywords(args.IncludeKeywords)
 	} else if cfg.IncludeKeywords != "" {
 		rt.IncludeKeywords = cli.ParseKeywords(cfg.IncludeKeywords)
 	}
-	
+
 	if args.ExcludeKeywords != "" {
 		rt.ExcludeKeywords = cli.ParseKeywords(args.ExcludeKeywords)
 	} else if cfg.ExcludeKeywords != "" {
 		rt.ExcludeKeywords = cli.ParseKeywords(cfg.ExcludeKeywords)
 	}
-	
+
 	// Deepseek API options - CLI args override config
 	if args.APIKey != "" {
 		rt.APIKey = args.APIKey
@@ -104,123 +102,78 @@ func applyConfiguration(rt *runtime.Runtime, cfg *config.Config, args *cli.Args)
 		// Fall back to environment variable
 		rt.APIKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
 	}
-	
+
 	if args.Model != "" {
 		rt.Model = args.Model
 	} else if cfg.Model != "" {
 		rt.Model = cfg.Model
 	}
-	
+
 	if args.MaxTokens != 0 {
 		rt.MaxTokens = args.MaxTokens
 	} else if cfg.MaxTokens != 0 {
 		rt.MaxTokens = cfg.MaxTokens
 	}
-	
+
 	if args.Temperature != 0 {
 		rt.Temperature = args.Temperature
 	} else if cfg.Temperature != 0 {
 		rt.Temperature = cfg.Temperature
 	}
-	
+
 	// System prompt - CLI args override config
 	if args.SystemPrompt != "" {
 		rt.SystemPrompt = args.SystemPrompt
 	} else if cfg.SystemPrompt != "" {
 		rt.SystemPrompt = cfg.SystemPrompt
 	}
-	
+
 	// Output options - CLI args override config
 	if args.Output != "" {
 		rt.Output = args.Output
 	} else if cfg.Output != "" {
 		rt.Output = cfg.Output
 	}
-	
+
 	if args.OutputFile != "" {
 		rt.OutputFile = args.OutputFile
 	} else if cfg.OutputFile != "" {
 		rt.OutputFile = cfg.OutputFile
 	}
-	
+
 	rt.IncludeArticles = args.IncludeArticles || cfg.IncludeArticles
 	rt.Verbose = args.Verbose
 }
 
 func runWithTUI(rt *runtime.Runtime) {
-	// Create TUI model
-	m := tui.New()
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	// 1. Create the model and pass the runtime to it.
+	model := tui.New(rt)
 
-	// Run TUI in goroutine
-	done := make(chan error)
-	go func() {
-		if _, err := p.Run(); err != nil {
-			done <- err
-			return
-		}
-		done <- nil
-	}()
+	// 2. Create the tea.Program.
+	p := tea.NewProgram(model, tea.WithAltScreen())
 
-	// Run aggregation in another goroutine
-	go func() {
-		// Create context for cancellation
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	// 3. Create the TUIProgress handler and give it the program instance.
+	//    This is the bridge that allows the runtime to send messages to the TUI.
+	tp := tui.NewTUIProgress(p)
 
-		// Set up signal handling
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	// 4. Inject the progress handler into the runtime.
+	rt.Progress = tp
 
-		// Handle signals
-		go func() {
-			<-sigCh
-			p.Send(tui.Error("Operation cancelled"))
-			cancel()
-		}()
-
-		// Update TUI status
-		p.Send(tui.Step(1, fmt.Sprintf("Aggregating feeds from: %s", rt.FeedsFile)))
-
-		// Execute the runtime
-		err := rt.Execute(ctx)
-		if err != nil {
-			p.Send(tui.Error(err.Error()))
-			return
-		}
-
-		// Update TUI status
-		p.Send(tui.StepWithCounts(5, "Formatting output", len(rt.Articles), len(rt.Articles)))
-
-		// Write output
-		if rt.OutputFile != "" {
-			if err := rt.WriteOutputToFile(); err != nil {
-				p.Send(tui.Error(fmt.Sprintf("Error writing output: %v", err)))
-				return
-			}
-			p.Send(tui.Step(6, fmt.Sprintf("Output written to: %s", rt.OutputFile)))
-		} else {
-			if err := rt.WriteOutput(os.Stdout); err != nil {
-				p.Send(tui.Error(fmt.Sprintf("Error writing output: %v", err)))
-				return
-			}
-			p.Send(tui.Step(6, "Output complete"))
-		}
-
-		// Mark as done
-		p.Send(tui.Step(7, "Processing completed successfully"))
-	}()
-
-	// Wait for TUI to complete
-	if err := <-done; err != nil {
-		fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+	// 5. Run the program. This is a blocking call.
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "TUI Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
-	// Set verbose flag on runtime
-	rt.Verbose = verbose
+	// Setup logger based on verbose flag and inject it into the runtime
+	if verbose {
+		rt.Progress = progress.NewSimpleLogger(os.Stdout, true)
+	} else {
+		// Default is already NoopLogger, but we can be explicit
+		rt.Progress = &progress.NoopLogger{}
+	}
 
 	// Execute the runtime
 	err := rt.Execute(context.Background())
