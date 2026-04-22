@@ -6,6 +6,43 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-22
+
+### Added
+
+- **Accurate token counting with tiktoken**
+  - New `internal/tokeniser` package using OpenAI's tiktoken-go library
+  - BPE tokenisation for accurate token counting vs rough character estimation
+  - Encoding caching to avoid repeated initialisation overhead
+  - Model-aware encoding selection (cl100k_base, o200k_base, etc.)
+  - `CountTokens()` and `CountMessagesTokens()` functions
+  - Fallback to rough estimation when tiktoken initialisation fails
+- **Concurrent feed fetching**: Feeds are now fetched concurrently using
+  `golang.org/x/sync/errgroup`
+  - Semaphore limits concurrent requests to 10 to avoid server overload
+  - Mutex-protected shared state for thread-safe article collection
+  - Partial failures don't stop other feeds from being processed
+- **Scrollable summary in TUI**
+  - Bubble Tea viewport component for browsing long summaries
+  - Keyboard navigation: j/k or arrows (scroll), Space/B (page), g/G
+  (start/end)
+  - Mouse wheel scrolling support
+  - Scroll progress indicator showing position and total lines
+
+### Changed
+
+- **Streamlined configuration management**: Viper now uses global instance with
+automatic precedence handling. Simplified configuration flow: Parse → GetViper
+→ BindCLIArgs → ViperToRuntime
+- **TUI colour scheme**: All hex colour codes replaced with ANSI 256-colour
+  palette
+
+### Fixed
+
+- Viewport now properly handles scroll events via `Update()`. Summary content
+  pre-wrapped to viewport width before display
+- Fixed string literal colour names to use actual variables
+
 ## [0.4.0] - 2026-04-21
 
 ### Changed 

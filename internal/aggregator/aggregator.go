@@ -1,17 +1,20 @@
 package aggregator
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"llm_aggregator/internal/progress"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/mmcdole/gofeed"
+	"golang.org/x/sync/errgroup"
 )
 
 // FeedAggregator aggregates articles from multiple RSS feeds.
@@ -44,9 +47,8 @@ func NewFeedAggregatorWithProgress(maxArticlesPerFeed, maxDaysOld, maxContentLen
 }
 
 // ParseFeedsFromFile parses RSS feeds from a file containing one URL per line.
+// Feeds are fetched concurrently for improved performance.
 func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error) {
-	articles := []*Article{}
-
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open feeds file: %w", err)
@@ -69,17 +71,46 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 
 	fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), filePath)
 
+	// Use mutex to protect shared state
+	var mu sync.Mutex
+	var allArticles []*Article
+	var feedErrors []string
+
+	// Limit concurrency to avoid overwhelming servers
+	const maxConcurrency = 10
+	sem := make(chan struct{}, maxConcurrency)
+
+	g, _ := errgroup.WithContext(context.Background())
 	for i, feedURL := range feedURLs {
-		fa.progressCtx.Logf("Processing feed %d/%d: %s", i+1, len(feedURLs), feedURL)
-		feedArticles, err := fa.ParseFeed(feedURL)
-		if err != nil {
-			fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
-			continue
-		}
-		articles = append(articles, feedArticles...)
+		currentIndex := i
+		sem <- struct{}{} // Acquire semaphore
+		g.Go(func() error {
+			defer func() { <-sem }() // Release semaphore
+			fa.progressCtx.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
+			feedArticles, err := fa.ParseFeed(feedURL)
+			if err != nil {
+				fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
+				mu.Lock()
+				feedErrors = append(feedErrors, fmt.Sprintf("%s: %v", feedURL, err))
+				mu.Unlock()
+				return nil // Don't return error to continue processing other feeds
+			}
+			mu.Lock()
+			allArticles = append(allArticles, feedArticles...)
+			mu.Unlock()
+			return nil
+		})
 	}
 
-	return articles, nil
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to process feeds: %w", err)
+	}
+
+	if len(feedErrors) > 0 {
+		fa.progressCtx.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
+	}
+
+	return allArticles, nil
 }
 
 // ParseFeed parses a single RSS feed and extracts articles.
@@ -284,4 +315,3 @@ func (fa *FeedAggregator) fetchWebpageContent(url string) (string, error) {
 
 	return "", nil
 }
-

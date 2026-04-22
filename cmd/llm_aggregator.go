@@ -22,14 +22,6 @@ func main() {
 	cli.BuildDate = buildDate
 	cli.Version = version
 
-	// Load configuration from file and environment variables
-	cfg, err := config.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not load configuration: %v\n", err)
-		// Continue with defaults
-		cfg = config.DefaultConfig()
-	}
-
 	// Parse command line arguments
 	args, err := cli.ParseArgs()
 	if err != nil {
@@ -37,19 +29,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create runtime configuration
-	rt := runtime.NewRuntime()
-	rt.FeedsFile = args.FeedsFile
-	rt.Prompt = args.Prompt
+	// Get viper instance with config file + environment variables + defaults
+	v := config.GetViper()
 
-	// Apply configuration with precedence: CLI args > Environment vars > Config file > Defaults
-	applyConfiguration(rt, cfg, args)
+	// Bind CLI args to viper (highest precedence)
+	config.BindCLIArgs(v, args.ToViperMap())
 
 	// Validate API key
-	if rt.APIKey == "" {
+	if v.GetString("api_key") == "" {
 		fmt.Fprintln(os.Stderr, "Error: OpenAI-compatible API key is required. Set via --api-key, LLM_AGGREGATOR_API_KEY environment variable, or config file.")
 		os.Exit(1)
 	}
+
+	// Create runtime directly from viper configuration
+	rt := config.ViperToRuntime(v, args.FeedsFile, args.Prompt)
 
 	// Run with TUI if requested
 	if args.TUI {
@@ -57,92 +50,6 @@ func main() {
 	} else {
 		runWithoutTUI(rt, args.Verbose)
 	}
-}
-
-// applyConfiguration applies configuration with proper precedence
-func applyConfiguration(rt *runtime.Runtime, cfg *config.Config, args *cli.Args) {
-	// Feed aggregation options - CLI args override config
-	if args.MaxArticlesPerFeed != 0 {
-		rt.MaxArticlesPerFeed = args.MaxArticlesPerFeed
-	} else if cfg.MaxArticlesPerFeed != 0 {
-		rt.MaxArticlesPerFeed = cfg.MaxArticlesPerFeed
-	}
-
-	if args.MaxDaysOld != 0 {
-		rt.MaxDaysOld = args.MaxDaysOld
-	} else if cfg.MaxDaysOld != 0 {
-		rt.MaxDaysOld = cfg.MaxDaysOld
-	}
-
-	if args.MaxTotalArticles != 0 {
-		rt.MaxTotalArticles = args.MaxTotalArticles
-	} else if cfg.MaxTotalArticles != 0 {
-		rt.MaxTotalArticles = cfg.MaxTotalArticles
-	}
-
-	// Content filtering - CLI args override config
-	if args.IncludeKeywords != "" {
-		rt.IncludeKeywords = cli.ParseKeywords(args.IncludeKeywords)
-	} else if cfg.IncludeKeywords != "" {
-		rt.IncludeKeywords = cli.ParseKeywords(cfg.IncludeKeywords)
-	}
-
-	if args.ExcludeKeywords != "" {
-		rt.ExcludeKeywords = cli.ParseKeywords(args.ExcludeKeywords)
-	} else if cfg.ExcludeKeywords != "" {
-		rt.ExcludeKeywords = cli.ParseKeywords(cfg.ExcludeKeywords)
-	}
-
-	// LLM API options - CLI args override config
-	if args.APIKey != "" {
-		rt.APIKey = args.APIKey
-	} else if cfg.APIKey != "" {
-		rt.APIKey = cfg.APIKey
-	} else {
-		// Fall back to environment variable
-		rt.APIKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
-	}
-
-	if args.Model != "" {
-		rt.Model = args.Model
-	} else if cfg.Model != "" {
-		rt.Model = cfg.Model
-	}
-
-	if args.MaxTokens != 0 {
-		rt.MaxTokens = args.MaxTokens
-	} else if cfg.MaxTokens != 0 {
-		rt.MaxTokens = cfg.MaxTokens
-	}
-
-	if args.Temperature != 0 {
-		rt.Temperature = args.Temperature
-	} else if cfg.Temperature != 0 {
-		rt.Temperature = cfg.Temperature
-	}
-
-	// System prompt - CLI args override config
-	if args.SystemPrompt != "" {
-		rt.SystemPrompt = args.SystemPrompt
-	} else if cfg.SystemPrompt != "" {
-		rt.SystemPrompt = cfg.SystemPrompt
-	}
-
-	// Output options - CLI args override config
-	if args.Output != "" {
-		rt.Output = args.Output
-	} else if cfg.Output != "" {
-		rt.Output = cfg.Output
-	}
-
-	if args.OutputFile != "" {
-		rt.OutputFile = args.OutputFile
-	} else if cfg.OutputFile != "" {
-		rt.OutputFile = cfg.OutputFile
-	}
-
-	rt.IncludeArticles = args.IncludeArticles || cfg.IncludeArticles
-	rt.Verbose = args.Verbose
 }
 
 func runWithTUI(rt *runtime.Runtime) {

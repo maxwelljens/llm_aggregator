@@ -17,10 +17,6 @@ OpenAI-compatible API to generate a concise summary or analysis. It’s designed
 for keeping up with news and articles from your favourite sources without
 having to read dozens or hundreds of individual posts.
 
-The tool includes a WIP terminal user interface (TUI) built with
-`bubbletea` and `lipgloss` that shows a live progress bar, article counts, and
-elapsed time while the aggregation runs.
-
 ## How do I use `llm_aggregator`?
 
     llm_aggregator --feeds-file FEEDS-FILE --prompt PROMPT [OPTIONS]...
@@ -94,7 +90,9 @@ llm_aggregator --help
 1. Parse command‑line arguments
 2. Read the feeds file: a plain text file containing one RSS/Atom feed URL per
    line.
-3. Fetch and parse each feed. RSS, Atom, and JSON Feed formats are supported.
+3. **Fetch and parse feeds concurrently**: RSS, Atom, and JSON Feed formats are
+   supported. Feeds are fetched in parallel with rate limiting to maximise
+   throughput while avoiding server overload.
 4. **Extract article content**: for each feed entry, the tool extracts the
    title, link, publication date, author, and description. If the feed provides
    only a snippet, it can optionally fetch the full webpage using `goquery` to
@@ -111,7 +109,11 @@ llm_aggregator --help
 
 When the `--tui` flag is used, the entire process is wrapped in a `bubbletea`
 TUI that shows a colourful progress bar, live article counters, and elapsed
-time (WIP).
+time. The TUI supports keyboard navigation (j/k, arrows, space, b, g/G) and
+mouse wheel scrolling for browsing long summaries.
+
+Feeds are fetched concurrently for optimal performance, with rate limiting to
+avoid overwhelming feed servers.
 
 ## Configuration
 
@@ -194,17 +196,19 @@ Then run:
 
 * [`gofeed`](https://github.com/mmcdole/gofeed): a robust RSS/Atom/JSON feed parser
 * [`openai‑go`](https://github.com/openai/openai-go): the official OpenAI API
-library for Go
+  library for Go
 * [`bubbletea`](https://github.com/charmbracelet/bubbletea): a TUI framework
   for building terminal applications
 * [`lipgloss`](https://github.com/charmbracelet/lipgloss): a library for
   styling terminal output (colours, borders, alignment)
 * [`go‑arg`](https://github.com/alexflint/go-arg): struct‑based argument
   parsing with automatic help and version flags
-* [`goquery`](https://github.com/PuerkitoBio/goquery): a jQuery‑like HTML
-  scraping library (used as a fallback when feed content is minimal)
-* [`viper`](https://github.com/spf13/viper): library used for reading and
-  writing to configuration files.
+* [`tiktoken-go`](https://github.com/pkoukk/tiktoken-go): OpenAI's tiktoken
+  BPE tokeniser for accurate token counting
+* [`viper`](https://github.com/spf13/viper): configuration management with
+  support for TOML, environment variables, and flags
+* [`goquery`](https://github.com/PuerkitoBio/goquery): jQuery‑like HTML scraping
+  for extracting full article content when feed descriptions are minimal
 
 ## How do I build `llm_aggregator`?
 

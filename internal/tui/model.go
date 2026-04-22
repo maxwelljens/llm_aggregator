@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"llm_aggregator/internal/runtime"
@@ -19,27 +20,30 @@ const (
 )
 
 var (
-	subtle    = lipgloss.AdaptiveColor{Light: "#D9DCCF", Dark: "#383838"}
-	highlight = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
-	special   = lipgloss.AdaptiveColor{Light: "#43BF6D", Dark: "#73F59F"}
+	colorSubtle        = lipgloss.Color("7")   // Gray (dim text)
+	colorHighlight     = lipgloss.Color("13")  // Magenta (status)
+	colorSuccess       = lipgloss.Color("2")   // Green (completion)
+	colorError         = lipgloss.Color("1")   // Red (errors)
+	colorGradientStart = lipgloss.Color("205") // Pink
+	colorGradientEnd   = lipgloss.Color("226") // Yellow
 
 	titleStyle = lipgloss.NewStyle().
 			MarginLeft(2).
 			MarginRight(2).
 			Padding(0, 1).
 			Italic(true).
-			Foreground(lipgloss.Color("#FFF7DB"))
+			Foreground(lipgloss.Color("15"))
 
 	infoStyle = lipgloss.NewStyle().
-			Foreground(subtle).
+			Foreground(colorSubtle).
 			Italic(true)
 
 	statusStyle = lipgloss.NewStyle().
-			Foreground(highlight).
+			Foreground(colorHighlight).
 			Bold(true)
 
 	progressBarStyle = lipgloss.NewStyle().
-				Foreground(special)
+				Foreground(colorSuccess)
 
 	stepNames = []string{
 		"Initialising",
@@ -67,6 +71,7 @@ type progressMsg float64
 type Model struct {
 	progress       progress.Model
 	spinner        spinner.Model
+	viewport       viewport.Model
 	runtime        *runtime.Runtime
 	currentStep    int
 	totalSteps     int
@@ -80,18 +85,19 @@ type Model struct {
 	errorMsg       string
 	articlesCount  int
 	processedCount int
+	showSummary    bool
 }
 
 func New(rt *runtime.Runtime) *Model {
 	prog := progress.New(
-		progress.WithScaledGradient("#FF7CCB", "#FDFF8C"),
+		progress.WithSolidFill("colorSuccess"),
 		progress.WithWidth(40),
 		progress.WithoutPercentage(),
 	)
 
 	sp := spinner.New()
 	sp.Spinner = spinner.Dot
-	sp.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF7CCB"))
+	sp.Style = lipgloss.NewStyle().Foreground(colorHighlight)
 
 	return &Model{
 		progress:    prog,
@@ -102,14 +108,19 @@ func New(rt *runtime.Runtime) *Model {
 		status:      "Initialising...",
 		subStatus:   "Loading configuration",
 		startTime:   time.Now(),
+		showSummary: false,
 	}
 }
 
 func (m *Model) Init() tea.Cmd {
+	// Initialise the viewport with default size (will be resized on WindowSizeMsg)
+	m.viewport = viewport.New(80, 20)
+	m.viewport.MouseWheelEnabled = true
+
 	return tea.Batch(m.spinner.Tick, m.startProcessing)
 }
 
-// MODIFIED: This is now the standard bubbletea command pattern.
+// This is now the standard bubbletea command pattern.
 // The bubbletea runtime will execute this function in a goroutine.
 // We no longer need to manage the goroutine or use program.Send().
 func (m *Model) startProcessing() tea.Msg {
@@ -120,6 +131,19 @@ func (m *Model) startProcessing() tea.Msg {
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Let the viewport handle navigation keys if showing summary
+		if m.showSummary {
+			var cmd tea.Cmd
+			m.viewport, cmd = m.viewport.Update(msg)
+			if cmd != nil {
+				return m, cmd
+			}
+			// If viewport handled a key, we're done
+			switch msg.String() {
+			case "j", "down", "k", "up", "g", "G", " ", "b":
+				return m, nil
+			}
+		}
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
@@ -128,6 +152,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.progress.Width = min(msg.Width-padding*2-4, maxWidth)
+		// Resize viewport for summary display
+		if m.showSummary {
+			m.viewport.Width = msg.Width - padding*2
+			m.viewport.Height = msg.Height - 10 // Leave space for header/footer
+		}
 	case progressMsg:
 		// This message type seems unused, but leaving it in case.
 		progress := float64(msg)
@@ -172,8 +201,19 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentStep = m.totalSteps // Go to "Complete" step
 			m.status = stepNames[m.totalSteps]
 			m.subStatus = "Summary generated successfully!"
+			// Enable summary viewport if there's content to display
+			if m.runtime.Summary != "" {
+				m.showSummary = true
+				// Resize viewport to fit available space
+				m.viewport.Width = m.width - padding*2
+				m.viewport.Height = m.height - 15 // Leave space for header/footer
+				// Wrap content to viewport width before setting
+				contentWidth := m.viewport.Width
+				summaryContent := "📝 Summary\n\n" + wrapText(m.runtime.Summary, contentWidth)
+				m.viewport.SetContent(summaryContent)
+			}
 		}
-		// MODIFIED: Capture the final elapsed time.
+		// Capture the final elapsed time.
 		m.elapsed = time.Since(m.startTime)
 		// We are done, so we return a command to quit the program automatically.
 		// The user can see the final summary. If we want the user to quit manually,
@@ -193,13 +233,18 @@ func (m *Model) View() string {
 		return "Initialising..."
 	}
 
+	// If we're showing the summary with scrolling, use a different layout
+	if m.showSummary {
+		return m.viewSummary()
+	}
+
 	var sb strings.Builder
 
 	// Title
 	sb.WriteString(titleStyle.Render("🤖 LLM Aggregator"))
 	sb.WriteString("\n\n")
 
-	// MODIFIED: If done, show 100% progress.
+	// If done, show 100% progress.
 	var progressPercent float64
 	if m.done && m.errorMsg == "" {
 		progressPercent = 1.0
@@ -216,11 +261,11 @@ func (m *Model) View() string {
 	// Status with spinner
 	sb.WriteString(statusStyle.Render("Status: "))
 
-	// MODIFIED: Replace spinner with a checkmark when done.
+	// Replace spinner with a checkmark when done.
 	if m.done && m.errorMsg == "" {
-		sb.WriteString(lipgloss.NewStyle().Foreground(special).Render("✓"))
+		sb.WriteString(lipgloss.NewStyle().Foreground(colorSuccess).Render("✓"))
 	} else if m.done && m.errorMsg != "" {
-		sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Render("✗"))
+		sb.WriteString(lipgloss.NewStyle().Foreground(colorError).Render("✗"))
 	} else {
 		sb.WriteString(m.spinner.View())
 	}
@@ -258,14 +303,14 @@ func (m *Model) View() string {
 	// Error message (if any)
 	if m.errorMsg != "" {
 		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000")).
+			Foreground(colorError).
 			Bold(true)
 		sb.WriteString(errorStyle.Render("Error: "))
 		sb.WriteString(m.errorMsg)
 		sb.WriteString("\n\n")
 	}
 
-	// MODIFIED: Simplified help text logic
+	// Simplified help text logic
 	if m.done {
 		// The summary is not part of the TUI, it's printed to stdout *after* the TUI exits.
 		// The TUI's job is just to show the progress.
@@ -273,33 +318,6 @@ func (m *Model) View() string {
 		// and the rest of the `main` function to proceed.
 	} else {
 		sb.WriteString(infoStyle.Render("Press 'q' or Ctrl+C to quit"))
-	}
-
-	// If the runtime has a summary and we are done, we can show it here.
-	// However, the typical flow is for the TUI to finish, and then the main
-	// function prints the final output. If we want to show it *in* the TUI,
-	// we would add this block:
-	if m.done && m.runtime.Summary != "" {
-		summaryTitleStyle := lipgloss.NewStyle().Bold(true).Underline(true)
-		sb.WriteString(summaryTitleStyle.Render("Summary"))
-		sb.WriteString("\n")
-
-		// Calculate a safe width for wrapping (terminal width minus some margin)
-		wrapWidth := max(m.width-4,
-			// Sane minimum fallback
-			20)
-
-		// Create a style that enforces word-wrapping
-		summaryStyle := lipgloss.NewStyle().
-			Width(wrapWidth)
-
-		// Render the summary through the style to apply the wrapping
-		sb.WriteString(summaryStyle.Render(m.runtime.Summary))
-		sb.WriteString("\n\n")
-
-		sb.WriteString(infoStyle.Render("Press 'q' to exit."))
-	} else if m.done {
-		sb.WriteString(infoStyle.Render("Press 'q' to exit."))
 	}
 
 	return sb.String()
@@ -338,4 +356,48 @@ func Error(err string) tea.Cmd {
 	return func() tea.Msg {
 		return ErrorMsg{Error: err}
 	}
+}
+
+// viewSummary renders the summary view with scrolling support.
+func (m *Model) viewSummary() string {
+	var sb strings.Builder
+
+	// Header
+	sb.WriteString(titleStyle.Render("🤖 LLM Aggregator"))
+	sb.WriteString("\n\n")
+
+	// Show completion status
+	sb.WriteString(statusStyle.Render("✓ Complete"))
+	sb.WriteString(" ")
+	sb.WriteString(m.subStatus)
+	sb.WriteString("\n\n")
+
+	// Elapsed time and article stats
+	sb.WriteString(infoStyle.Render(fmt.Sprintf("Articles: %d | Processed: %d | Elapsed: %v",
+		m.articlesCount, m.processedCount, m.elapsed.Round(time.Second))))
+	sb.WriteString("\n\n")
+
+	// Scroll progress indicator
+	scrollPercent := int(m.viewport.ScrollPercent() * 100)
+	if m.viewport.TotalLineCount() > m.viewport.VisibleLineCount() {
+		sb.WriteString(infoStyle.Render(fmt.Sprintf("Scroll: %d%% (%d/%d lines)",
+			scrollPercent, m.viewport.TotalLineCount()-m.viewport.VisibleLineCount()-m.viewport.YOffset,
+			m.viewport.TotalLineCount())))
+		sb.WriteString("\n\n")
+	}
+
+	// Viewport (scrollable summary)
+	sb.WriteString(m.viewport.View())
+	sb.WriteString("\n")
+
+	// Navigation help
+	sb.WriteString(infoStyle.Render("Navigate: ↑/↓ or j/k (scroll) | Space/B (page) | g/G (start/end) | q (quit)"))
+
+	return sb.String()
+}
+
+// wrapText wraps text to a given width using lipgloss.
+func wrapText(text string, width int) string {
+	style := lipgloss.NewStyle().Width(width)
+	return style.Render(text)
 }

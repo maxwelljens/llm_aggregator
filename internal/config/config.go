@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/viper"
+
+	"llm_aggregator/internal/cli"
+	"llm_aggregator/internal/progress"
+	"llm_aggregator/internal/runtime"
 )
 
 // Config holds the application configuration loaded from TOML file, environment variables, and CLI arguments.
@@ -30,9 +34,6 @@ type Config struct {
 	Output          string `mapstructure:"output"`
 	OutputFile      string `mapstructure:"output_file"`
 	IncludeArticles bool   `mapstructure:"include_articles"`
-
-	// Internal state
-	loaded bool
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -56,46 +57,162 @@ Focus on key points, trends, and important information.`,
 // Load loads configuration from TOML file, environment variables, and sets defaults.
 // The precedence order is: CLI args > Environment variables > Config file > Defaults.
 func Load() (*Config, error) {
-	config := DefaultConfig()
+	// Get the global viper instance which handles precedence automatically
+	v := GetViper()
 
-	// Initialise Viper
-	v := viper.New()
-	v.SetConfigName("config")
-	v.SetConfigType("toml")
+	// Return the current configuration as a Config struct
+	return ViperToConfig(v), nil
+}
 
-	// Set environment variable prefix first
+// GetViper returns the global viper instance with all configuration sources set up.
+// The precedence order is: CLI flags > Environment variables > Config file > Defaults.
+func GetViper() *viper.Viper {
+	// Set defaults first (lowest priority)
+	setDefaults()
+
+	// Initialise or get existing Viper instance
+	v := viper.GetViper()
+
+	// Ensure defaults are set (for fresh instances)
+	setDefaultsOn(v)
+
+	// Set environment variable prefix
 	v.SetEnvPrefix("LLM_AGGREGATOR")
-	v.AutomaticEnv() // Read from environment variables
+	v.AutomaticEnv()
 
 	// Bind environment variables to config fields
 	bindEnvVars(v)
 
 	// Get config path from XDG
 	configPath, err := GetConfigPath()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get config path: %w", err)
-	}
+	if err == nil {
+		// Set config file path
+		v.SetConfigFile(configPath)
 
-	// Set config file path
-	v.AddConfigPath(filepath.Dir(configPath))
-
-	// Try to read config file
-	if err := v.ReadInConfig(); err != nil {
-		// If config file doesn't exist, that's OK - we'll use defaults + env vars
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("error reading config file: %w", err)
+		// Try to read config file
+		if err := v.ReadInConfig(); err != nil {
+			// If config file doesn't exist, that's OK - we'll use defaults + env vars
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				fmt.Fprintf(os.Stderr, "Warning: error reading config file: %v\n", err)
+			}
 		}
-	} else {
-		// Config file was found
-		config.loaded = true
 	}
 
-	// Unmarshal config into struct
-	if err := v.Unmarshal(config); err != nil {
-		return nil, fmt.Errorf("error unmarshalling config: %w", err)
+	return v
+}
+
+// setDefaults sets default values on the global viper instance.
+func setDefaults() {
+	v := viper.GetViper()
+	setDefaultsOn(v)
+}
+
+// setDefaultsOn sets default values on the given viper instance.
+func setDefaultsOn(v *viper.Viper) {
+	// Feed aggregation defaults
+	v.SetDefault("max_articles_per_feed", 10)
+	v.SetDefault("max_days_old", 7)
+	v.SetDefault("max_total_articles", 20)
+
+	// LLM API defaults
+	v.SetDefault("model", "deepseek-chat")
+	v.SetDefault("max_tokens", 4000)
+	v.SetDefault("temperature", 0.7)
+
+	// System prompt default
+	v.SetDefault("system_prompt", `You are an expert analyst and summariser.
+You analyse content from multiple sources and provide
+concise, insightful summaries based on user requests.
+Focus on key points, trends, and important information.`)
+
+	// Output defaults
+	v.SetDefault("output", "text")
+	v.SetDefault("include_articles", false)
+}
+
+// ViperToConfig converts viper configuration to a Config struct.
+func ViperToConfig(v *viper.Viper) *Config {
+	return &Config{
+		MaxArticlesPerFeed: v.GetInt("max_articles_per_feed"),
+		MaxDaysOld:         v.GetInt("max_days_old"),
+		MaxTotalArticles:   v.GetInt("max_total_articles"),
+		IncludeKeywords:    v.GetString("include_keywords"),
+		ExcludeKeywords:    v.GetString("exclude_keywords"),
+		APIKey:             v.GetString("api_key"),
+		Model:              v.GetString("model"),
+		MaxTokens:          v.GetInt("max_tokens"),
+		Temperature:        v.GetFloat64("temperature"),
+		SystemPrompt:       v.GetString("system_prompt"),
+		Output:             v.GetString("output"),
+		OutputFile:         v.GetString("output_file"),
+		IncludeArticles:    v.GetBool("include_articles"),
+	}
+}
+
+// BindCLIArgs binds CLI argument values to viper with highest precedence.
+// This should be called after parsing CLI arguments to override config file/env defaults.
+func BindCLIArgs(v *viper.Viper, args map[string]any) {
+	for key, value := range args {
+		if value != nil && !isZero(value) {
+			v.Set(key, value)
+		}
+	}
+}
+
+// isZero checks if a value is the zero value for its type.
+func isZero(v any) bool {
+	switch val := v.(type) {
+	case string:
+		return val == ""
+	case int, int8, int16, int32, int64:
+		return val == 0
+	case float32, float64:
+		return val == 0
+	case bool:
+		return !val
+	default:
+		return false
+	}
+}
+
+// ViperToRuntime converts viper configuration directly to runtime.Runtime.
+func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
+	rt := &runtime.Runtime{
+		FeedsFile: feedsFile,
+		Prompt:    prompt,
+		Progress:  &progress.NoopLogger{},
 	}
 
-	return config, nil
+	// Feed aggregation options
+	rt.MaxArticlesPerFeed = v.GetInt("max_articles_per_feed")
+	rt.MaxDaysOld = v.GetInt("max_days_old")
+	rt.MaxTotalArticles = v.GetInt("max_total_articles")
+
+	// Keywords
+	includeKeywords := v.GetString("include_keywords")
+	excludeKeywords := v.GetString("exclude_keywords")
+	if includeKeywords != "" {
+		rt.IncludeKeywords = cli.ParseKeywords(includeKeywords)
+	}
+	if excludeKeywords != "" {
+		rt.ExcludeKeywords = cli.ParseKeywords(excludeKeywords)
+	}
+
+	// LLM API options
+	rt.APIKey = v.GetString("api_key")
+	rt.Model = v.GetString("model")
+	rt.MaxTokens = v.GetInt("max_tokens")
+	rt.Temperature = v.GetFloat64("temperature")
+
+	// System prompt
+	rt.SystemPrompt = v.GetString("system_prompt")
+
+	// Output options
+	rt.Output = v.GetString("output")
+	rt.OutputFile = v.GetString("output_file")
+	rt.IncludeArticles = v.GetBool("include_articles")
+
+	return rt
 }
 
 // bindEnvVars binds environment variables to viper keys.
@@ -189,5 +306,11 @@ func (c *Config) Save() error {
 
 // IsLoaded returns true if the configuration was loaded from a file.
 func (c *Config) IsLoaded() bool {
-	return c.loaded
+	// Check if config file exists - if it does, values would have been loaded from it
+	configPath, err := GetConfigPath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(configPath)
+	return err == nil
 }

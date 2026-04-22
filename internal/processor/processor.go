@@ -8,6 +8,7 @@ import (
 
 	"llm_aggregator/internal/aggregator"
 	"llm_aggregator/internal/progress"
+	"llm_aggregator/internal/tokeniser"
 )
 
 // ContentProcessor processes and prepares aggregated content for LLM analysis.
@@ -224,34 +225,167 @@ func (cp *ContentProcessor) prepareForLLM(articles []*aggregator.Article) []map[
 	return processed
 }
 
-// EstimateTokenCount estimates token count for articles (rough approximation).
-// Note: This is a rough estimate (1 token ≈ 4 characters for English).
-// Actual tokenisation may vary.
-func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any) int {
-	totalChars := 0
+// EstimateTokenCount estimates token count for articles using tiktoken.
+// This is the accurate method using OpenAI's tokenisation.
+func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any, model string) int {
+	totalTokens := 0
 
 	for _, article := range articles {
 		for _, field := range []string{"title", "content", "author", "source_feed"} {
 			if val, ok := article[field]; ok && val != nil {
-				if str, ok := val.(string); ok {
-					totalChars += len(str)
+				if str, ok := val.(string); ok && str != "" {
+					tokens, err := tokeniser.CountTokens(str, model)
+					if err != nil {
+						// Fallback to rough estimate on error
+						if cp.logger != nil {
+							cp.logger.Logf("Warning: token count error for %s: %v", field, err)
+						}
+						totalTokens += len(str) / 4
+						continue
+					}
+					totalTokens += tokens
 				}
 			}
 		}
 	}
 
-	// Rough estimate: 1 token ≈ 4 characters for English
-	estimatedTokens := totalChars / 4
-
 	if cp.logger != nil {
-		cp.logger.Logf("Estimated tokens: %d (~%d chars)", estimatedTokens, totalChars)
+		cp.logger.Logf("Estimated tokens: %d", totalTokens)
 	}
 
-	return estimatedTokens
+	return totalTokens
 }
 
 // CreateConciseContext creates a concise context from articles, respecting token limits.
-func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxTotalTokens int) string {
+func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxTotalTokens int, model string) string {
+	if len(articles) == 0 {
+		return "No articles available."
+	}
+
+	// Get the appropriate encoding for accurate token counting
+	encodingName, err := tokeniser.EncodingForModel(model)
+	if err != nil {
+		// Fallback to rough estimate if model not recognised
+		if cp.logger != nil {
+			cp.logger.Logf("Warning: unknown model %s, using rough token estimate", model)
+		}
+		return cp.createConciseContextRough(articles, maxTotalTokens)
+	}
+
+	enc, err := tokeniser.GetEncoding(encodingName)
+	if err != nil {
+		if cp.logger != nil {
+			cp.logger.Logf("Warning: failed to get encoding: %v", err)
+		}
+		return cp.createConciseContextRough(articles, maxTotalTokens)
+	}
+
+	contextParts := []string{}
+	currentTokens := 0
+
+	for i, article := range articles {
+		// Create article summary
+		articleText := fmt.Sprintf("Article %d: %s\n", i+1, article["title"])
+
+		// Add source if available
+		if source, ok := article["source_feed"].(string); ok && source != "" {
+			articleText += fmt.Sprintf("Source: %s\n", source)
+		}
+
+		// Add publication date if available
+		if published, ok := article["published"]; ok {
+			switch pub := published.(type) {
+			case time.Time:
+				if !pub.IsZero() {
+					articleText += fmt.Sprintf("Published: %s\n", pub.Format("2006-01-02"))
+				}
+			case string:
+				articleText += fmt.Sprintf("Published: %s\n", pub)
+			}
+		}
+
+		// Add content (we'll truncate based on actual tokens)
+		content := ""
+		if c, ok := article["content"].(string); ok {
+			content = c
+		}
+
+		// First, check if we can add the header tokens
+		headerTokens := len(enc.Encode(articleText, nil, nil))
+
+		// Calculate remaining tokens for this article
+		remainingTokens := maxTotalTokens - currentTokens - headerTokens - 3 // -3 for separator
+
+		if remainingTokens <= 0 {
+			if cp.logger != nil {
+				cp.logger.Logf(
+					"Reached token limit (%d). Included %d of %d articles.",
+					maxTotalTokens, i, len(articles),
+				)
+			}
+			break
+		}
+
+		// Convert token budget to approximate character limit (rough guide)
+		// Characters are typically 3-4x tokens for English
+		maxContentChars := remainingTokens * 4
+
+		if len(content) > maxContentChars {
+			// Need to encode and truncate more precisely
+			contentTokens := len(enc.Encode(content, nil, nil))
+			if contentTokens > remainingTokens {
+				// Binary search for truncation point would be more accurate,
+				// but for performance, use the rough estimate
+				content = content[:maxContentChars] + "... [truncated]"
+			}
+		}
+
+		articleText += fmt.Sprintf("Content: %s\n", content)
+
+		// Count actual tokens for this article
+		articleTokens := len(enc.Encode(articleText, nil, nil))
+
+		// Double-check we haven't exceeded limit
+		if currentTokens+articleTokens > maxTotalTokens {
+			// Truncate content more aggressively
+			maxArticleChars := (maxTotalTokens - currentTokens - headerTokens - 20) * 4
+			if maxArticleChars > 0 {
+				content = content[:maxArticleChars] + "... [truncated]"
+				articleText = fmt.Sprintf("Article %d: %s\n", i+1, article["title"])
+				if source, ok := article["source_feed"].(string); ok && source != "" {
+					articleText += fmt.Sprintf("Source: %s\n", source)
+				}
+				articleText += fmt.Sprintf("Content: %s\n", content)
+				articleTokens = len(enc.Encode(articleText, nil, nil))
+			}
+
+			if currentTokens+articleTokens > maxTotalTokens {
+				if cp.logger != nil {
+					cp.logger.Logf(
+						"Reached token limit (%d). Included %d of %d articles.",
+						maxTotalTokens, i, len(articles),
+					)
+				}
+				break
+			}
+		}
+
+		contextParts = append(contextParts, articleText)
+		currentTokens += articleTokens
+	}
+
+	context := strings.Join(contextParts, "\n---\n")
+
+	if cp.logger != nil {
+		cp.logger.Logf("Created context with %d articles, ~%d tokens", len(contextParts), currentTokens)
+	}
+
+	return context
+}
+
+// createConciseContextRough creates a concise context using rough character-based estimation.
+// Used as fallback when tiktoken is unavailable.
+func (cp *ContentProcessor) createConciseContextRough(articles []map[string]any, maxTotalTokens int) string {
 	if len(articles) == 0 {
 		return "No articles available."
 	}
@@ -286,7 +420,8 @@ func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxT
 			content = c
 		}
 
-		maxContentTokens := maxTotalTokens / len(articles) // Rough allocation
+		// Rough allocation per article
+		maxContentTokens := maxTotalTokens / len(articles)
 		maxContentChars := maxContentTokens * 4
 
 		if len(content) > maxContentChars {
@@ -295,7 +430,7 @@ func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxT
 
 		articleText += fmt.Sprintf("Content: %s\n", content)
 
-		// Estimate tokens for this article
+		// Rough estimate: 1 token ≈ 4 characters
 		articleTokens := len(articleText) / 4
 
 		// Check if adding this article would exceed limit
@@ -316,9 +451,8 @@ func (cp *ContentProcessor) CreateConciseContext(articles []map[string]any, maxT
 	context := strings.Join(contextParts, "\n---\n")
 
 	if cp.logger != nil {
-		cp.logger.Logf("Created context with %d articles, ~%d tokens", len(contextParts), currentTokens)
+		cp.logger.Logf("Created context with %d articles, ~%d tokens (rough estimate)", len(contextParts), currentTokens)
 	}
 
 	return context
 }
-

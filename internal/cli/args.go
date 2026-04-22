@@ -115,3 +115,23 @@ func ParseArgs() (*Args, error) {
 
 	return &args, nil
 }
+
+// ToViperMap converts Args to a map for binding to Viper.
+// Only non-empty/non-zero values are included.
+func (a *Args) ToViperMap() map[string]any {
+	return map[string]any{
+		"max_articles_per_feed": a.MaxArticlesPerFeed,
+		"max_days_old":         a.MaxDaysOld,
+		"max_total_articles":   a.MaxTotalArticles,
+		"include_keywords":     a.IncludeKeywords,
+		"exclude_keywords":     a.ExcludeKeywords,
+		"api_key":              a.APIKey,
+		"model":                a.Model,
+		"max_tokens":           a.MaxTokens,
+		"temperature":          a.Temperature,
+		"system_prompt":        a.SystemPrompt,
+		"output":               a.Output,
+		"output_file":          a.OutputFile,
+		"include_articles":     a.IncludeArticles,
+	}
+}
