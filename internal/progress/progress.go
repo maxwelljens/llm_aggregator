@@ -3,6 +3,8 @@ package progress
 import (
 	"fmt"
 	"io"
+
+	"llm_aggregator/internal/style"
 )
 
 // Logger provides logging interface for the aggregator
@@ -39,12 +41,14 @@ func (sl *SimpleLogger) Logf(format string, args ...any) {
 }
 
 func (sl *SimpleLogger) Warningf(format string, args ...any) {
-	fmt.Fprintf(sl.writer, "Warning: "+format+"\n", args...)
+	// Use style.Warningf for orange bold WARNING prefix
+	fmt.Fprintf(sl.writer, "%s\n", style.Warningf(format, args...))
 }
 
 func (sl *SimpleLogger) Debugf(format string, args ...any) {
 	if sl.debug {
-		fmt.Fprintf(sl.writer, "Debug: "+format+"\n", args...)
+		// Use style.Debugf for styled debug output
+		fmt.Fprintf(sl.writer, "%s\n", style.Debugf(format, args...))
 	}
 }
 

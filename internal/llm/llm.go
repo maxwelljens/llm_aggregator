@@ -56,10 +56,12 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature floa
 	}
 
 	// Create OpenAI client configured for LLM
-	client := openai.NewClient(
+	clientOpts := []option.RequestOption{
 		option.WithAPIKey(apiKey),
 		option.WithBaseURL(baseURL),
-	)
+	}
+
+	client := openai.NewClient(clientOpts...)
 
 	return &LLMClient{
 		client:      client,

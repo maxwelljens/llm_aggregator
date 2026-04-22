@@ -44,6 +44,7 @@ type Args struct {
 	TUI          bool   `arg:"--tui" help:"Enable TUI interface with progress bar"`
 	Verbose      bool   `arg:"-v,--verbose" help:"Show verbose output"`
 	ShowVersion  bool   `arg:"--version" help:"Show version"`
+	DryRun       bool   `arg:"--dry-run" help:"Validate config, show article statistics, and exit without making LLM API calls"`
 }
 
 // Version returns the version string.
@@ -58,6 +59,9 @@ func (Args) Description() string {
 Examples:
   # Basic usage with prompts
   llm_aggregator --feeds-file feeds.txt --prompt "What are the latest trends in free software?"
+  
+  # Validate configuration and preview articles (no LLM API calls)
+  llm_aggregator --feeds-file feeds.txt --prompt "Summarise news" --dry-run
   
   # With custom LLM model
   llm_aggregator --feeds-file feeds.txt --prompt "Summarise tech news" --model deepseek-coder

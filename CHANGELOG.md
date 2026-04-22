@@ -6,6 +6,24 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-22
+
+### Added
+
+- **`--dry-run` option**: Validate configuration and preview what would happen
+  without making any LLM API calls. Useful for validating feeds file and
+  configuration, checking article counts and filtering results and anything
+  else that can be done "offline".
+- **Styled terminal output using `lipgloss`**: All CLI output now uses ANSI
+  colour codes for better readability:
+- **`$NO_COLOR` environment variable support**: Respects the ["no
+color"](https://no-color.org/) standard. When `NO_COLOR` is set, all styling is
+disabled and plain text is output instead.
+
+### Changed
+
+- API key validation now only occurs when not using `--dry-run` mode
+
 ## [0.6.0] - 2026-04-22
 
 ### Added

@@ -511,3 +511,69 @@ func TestParseKeywords(t *testing.T) {
 		})
 	}
 }
+
+func TestDryRunFlag(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        []string
+		wantDryRun  bool
+		wantErr     bool
+		setupFunc   func()
+		cleanupFunc func()
+	}{
+		{
+			name:       "dry-run flag not set",
+			args:       []string{"--feeds-file", "/tmp/feeds.txt", "--prompt", "Test"},
+			wantDryRun: false,
+			wantErr:    false,
+		},
+		{
+			name:       "dry-run flag set",
+			args:       []string{"--feeds-file", "/tmp/feeds.txt", "--prompt", "Test", "--dry-run"},
+			wantDryRun: true,
+			wantErr:    false,
+		},
+		{
+			name:       "dry-run flag as --dry-run=true",
+			args:       []string{"--feeds-file", "/tmp/feeds.txt", "--prompt", "Test", "--dry-run=true"},
+			wantDryRun: true,
+			wantErr:    false,
+		},
+		{
+			name:       "dry-run with TUI",
+			args:       []string{"--feeds-file", "/tmp/feeds.txt", "--prompt", "Test", "--dry-run", "--tui"},
+			wantDryRun: true,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setupFunc != nil {
+				tt.setupFunc()
+			}
+			if tt.cleanupFunc != nil {
+				defer tt.cleanupFunc()
+			}
+
+			argsCopy := make([]string, len(os.Args))
+			copy(argsCopy, os.Args)
+			defer func() { os.Args = argsCopy }()
+
+			os.Args = append([]string{"llm_aggregator"}, tt.args...)
+
+			parsedArgs, err := ParseArgs()
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				} else if parsedArgs.DryRun != tt.wantDryRun {
+					t.Errorf("DryRun mismatch: want %v, got %v", tt.wantDryRun, parsedArgs.DryRun)
+				}
+			}
+		})
+	}
+}

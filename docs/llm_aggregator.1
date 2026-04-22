@@ -40,6 +40,11 @@ Prepare the prompt with selected articles and send to the LLM
 \(bu
 Format and output the result in the chosen format (text, markdown, or JSON)
 .PP
+Output is styled with ANSI colours for better readability, but this software
+respects the
+.B NO_COLOR
+environment variable (see https://no-color.org/).
+.PP
 Feeds are fetched concurrently for optimal performance, with rate limiting
 to avoid overwhelming feed servers.
 .SH REQUIRED ARGUMENTS
@@ -131,6 +136,24 @@ Include the original articles in JSON output. Only applicable when
 .B \-\-output json
 is used.
 .SS Interface Options
+.TP
+.B \-\-dry\-run
+Validate configuration and preview what would happen without making any LLM
+API calls. Useful for:
+.RS 4
+.TP 2
+\(bu
+Validating feeds file and configuration
+.TP 2
+\(bu
+Checking article counts and filtering results
+.TP 2
+\(bu
+Estimating token usage before running
+.TP 2
+\(bu
+Testing network connectivity to feeds
+.RE
 .TP
 .B \-\-tui
 Enable the TUI interface with a progress bar, live article counters, and
@@ -229,6 +252,18 @@ llm_aggregator \-\-feeds-file feeds.txt \\
     \-\-prompt "What are the latest AI\-related trends in free software?"
 .fi
 .RE
+.SS Validating Configuration (Dry Run)
+.PP
+Validate configuration and preview articles before making any LLM API calls:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Summarise news" \-\-dry-run
+.fi
+.RE
+.PP
+This shows article counts, filtering statistics, token estimates, and the
+prompt that would be sent. No API key is required for dry-run mode.
 .SS Using TUI
 .PP
 Enable the TUI interface with a progress bar:

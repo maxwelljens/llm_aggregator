@@ -11,6 +11,7 @@ import (
 	"llm_aggregator/internal/defaults"
 	"llm_aggregator/internal/progress"
 	"llm_aggregator/internal/runtime"
+	"llm_aggregator/internal/style"
 )
 
 // Config holds the application configuration loaded from TOML file, environment variables, and CLI arguments.
@@ -93,7 +94,7 @@ func GetViper() *viper.Viper {
 		if err := v.ReadInConfig(); err != nil {
 			// If config file doesn't exist, that's OK - we'll use defaults + env vars
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				fmt.Fprintf(os.Stderr, "Warning: error reading config file: %v\n", err)
+				fmt.Fprintln(os.Stderr, style.Warningf("error reading config file: %v", err))
 			}
 		}
 	}

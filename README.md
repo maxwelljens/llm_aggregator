@@ -1,6 +1,8 @@
 <h1 align="center">llm_aggregator</h1>
 
 <p align="center">
+    <img src="assets/logo.svg" alt="LLM Aggregator logo" width=500>
+    <br>
     <strong>A CLI tool to aggregate RSS feeds and summarise them with LLMs</strong>
 </p>
 
@@ -32,6 +34,7 @@ the LLM. The resulting output is printed to the terminal in your chosen format
     --prompt PROMPT           User prompt for summarisation/analysis
     --api-key KEY             API key (default: read from $LLM_AGGREGATOR_API_KEY)
     --model MODEL             Model to use (default: deepseek-chat)
+    --dry-run                 Validate config, show article statistics, and exit without making LLM API calls.
     --base-url URL            API base URL (default: https://api.deepseek.com)
     --max-tokens N            Maximum tokens in response (default: 4000)
     --output FORMAT           Output format: text, markdown, or json (default: text)

@@ -1,28 +1,32 @@
 # llm_aggregator configuration file
 # Location: ~/.config/llm_aggregator/config.toml
+#
+# All options can be overridden via command-line arguments.
+# Environment variables take precedence: LLM_AGGREGATOR_* prefix.
 
 # Feed aggregation options
-max_articles_per_feed = 10
-max_days_old = 7
-max_total_articles = 20
+max_articles_per_feed = 10       # Maximum articles to fetch from each RSS feed
+max_days_old = 7                 # Only include articles published within this many days
+max_total_articles = 20          # Maximum total articles to process across all feeds
 
 # Content filtering (comma-separated keywords)
-# include_keywords = "linux,opensource"
-# exclude_keywords = "windows,microsoft"
+# include_keywords = "linux,opensource"  # Only include articles containing at least one of these keywords
+# exclude_keywords = "windows"           # Exclude articles containing any of these keywords
 
 # LLM API options
-# api_key = "your_api_key_here"  # Can also be set via LLM_AGGREGATOR_API_KEY env var
-model = "deepseek-chat"
-max_tokens = 4000
-temperature = 0.7
+api_key = "your_api_key_here"     # Can also be set via LLM_AGGREGATOR_API_KEY env var
+base_url = "https://api.deepseek.com"  # API base URL (OpenAI-compatible endpoints)
+model = "deepseek-chat"           # Model identifier (e.g., deepseek-chat, gpt-4, MiniMax-M2.7)
+max_tokens = 4000                 # Maximum tokens in LLM response
+temperature = 0.7                 # Sampling temperature (0.0 to 1.0, lower = more focused)
 
-# System prompt for LLM API
+# System prompt for LLM (instructions that guide the AI's behaviour)
 system_prompt = """You are an expert analyst and summariser.
 You analyse content from multiple sources and provide
 concise, insightful summaries based on user requests.
 Focus on key points, trends, and important information."""
 
 # Output options
-output = "text"  # Options: text, json, markdown
-# output_file = ""  # Optional output file path
-include_articles = false
+output = "text"              # Output format: text, json, or markdown
+# output_file = ""          # Optional: write output to file instead of stdout
+include_articles = false     # Include original article content in output
