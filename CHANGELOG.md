@@ -6,6 +6,30 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-04-22
+
+### Fixed
+
+- Environment variables were correctly overriding config file values, but CLI
+  arguments without explicit flags were also overriding config file values
+  unintentionally.
+  - Root cause: `go-arg` was populating struct fields with default values
+    from `default:` tags even when those CLI flags weren't provided
+  - Fix: Removed `default:` tags from Args struct fields for LLM options
+    (`model`, `base-url`, `api-key`, `max-tokens`, `temperature`);
+    Viper's own default handling is sufficient
+  - Fix: Changed Args struct fields from value types to pointer types
+    (`*string`, `*int`, `*float64`) so that "not provided on CLI" can be
+    distinguished from "provided but zero/empty"
+  - Fix: Updated `BindCLIArgs()` and `isZero()` to properly handle pointer
+    types and distinguish nil pointers from zero values
+- `isZero()` with compound type switch cases: Compound type cases like `case
+  *int, *int8, *int16, *int32, *int64` don't properly handle nil comparison when
+  stored in an interface variable. Fixed by splitting into individual type cases.
+- `isZero()` missing nil interface handling: When a nil pointer is stored
+  in an `any` interface, `value != nil` returns `true` (the interface itself
+  is not nil). Added early `if v == nil { return true }` check.
+
 ## [0.7.0] - 2026-04-22
 
 ### Added

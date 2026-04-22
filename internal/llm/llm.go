@@ -179,6 +179,8 @@ func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessage
 
 	if dc.logger != nil {
 		dc.logger.Logf("Calling LLM API with model: %s", dc.model)
+		dc.logger.Logf("Max tokens: %d, Temperature: %.2f", dc.maxTokens, dc.temperature)
+		dc.logger.Logf("Messages count: %d", len(messages))
 	}
 
 	response, err := dc.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
@@ -189,8 +191,14 @@ func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessage
 	})
 
 	if err != nil {
-		// Provide more specific error messages
+		// Provide more specific error messages based on error type
 		errStr := err.Error()
+
+		// Log the full error for debugging
+		if dc.logger != nil {
+			dc.logger.Logf("API error: %s", errStr)
+		}
+
 		if strings.Contains(errStr, "401") {
 			return "", fmt.Errorf("invalid API key. Please check your LLM API key")
 		} else if strings.Contains(errStr, "429") {

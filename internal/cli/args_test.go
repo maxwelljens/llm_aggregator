@@ -148,11 +148,12 @@ func TestPromptParsing(t *testing.T) {
 }
 
 func TestAPIKeyParsing(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
 	tests := []struct {
 		name          string
 		apiKey        string
 		envKey        string
-		wantAPIKey    string
+		wantAPIKey    *string
 		wantErr       bool
 		setupFunc     func()
 		cleanupFunc   func()
@@ -160,20 +161,20 @@ func TestAPIKeyParsing(t *testing.T) {
 		{
 			name:       "explicit api key",
 			apiKey:     "sk-test-key-12345",
-			wantAPIKey: "sk-test-key-12345",
+			wantAPIKey: strPtr("sk-test-key-12345"),
 			wantErr:    false,
 		},
 		{
 			name:       "empty api key",
 			apiKey:     "",
-			wantAPIKey: "", // Optional field
+			wantAPIKey: nil, // Optional field - not provided
 			wantErr:    false,
 		},
 		{
 			name:       "api key from environment variable - checked via config",
 			apiKey:     "",
 			envKey:     "sk-env-key-67890",
-			wantAPIKey: "", // CLI parsing doesn't read env vars directly
+			wantAPIKey: nil, // CLI parsing doesn't read env vars directly
 			wantErr:    false,
 			setupFunc: func() {
 				os.Setenv("LLM_AGGREGATOR_API_KEY", "sk-env-key-67890")
@@ -186,7 +187,7 @@ func TestAPIKeyParsing(t *testing.T) {
 			name:       "explicit key overrides env",
 			apiKey:     "sk-explicit-key",
 			envKey:     "sk-env-key-should-be-ignored",
-			wantAPIKey: "sk-explicit-key",
+			wantAPIKey: strPtr("sk-explicit-key"),
 			wantErr:    false,
 			setupFunc: func() {
 				os.Setenv("LLM_AGGREGATOR_API_KEY", "sk-env-key-should-be-ignored")
@@ -224,8 +225,16 @@ func TestAPIKeyParsing(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("Unexpected error for api-key: %v", err)
-				} else if parsedArgs.APIKey != tt.wantAPIKey {
-					t.Errorf("APIKey mismatch: want %q, got %q", tt.wantAPIKey, parsedArgs.APIKey)
+				} else if (tt.wantAPIKey == nil && parsedArgs.APIKey != nil) || (tt.wantAPIKey != nil && *parsedArgs.APIKey != *tt.wantAPIKey) {
+					wantStr := "<nil>"
+					if tt.wantAPIKey != nil {
+						wantStr = *tt.wantAPIKey
+					}
+					gotStr := "<nil>"
+					if parsedArgs.APIKey != nil {
+						gotStr = *parsedArgs.APIKey
+					}
+					t.Errorf("APIKey mismatch: want %q, got %q", wantStr, gotStr)
 				}
 			}
 		})
@@ -233,10 +242,11 @@ func TestAPIKeyParsing(t *testing.T) {
 }
 
 func TestModelParsing(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
 	tests := []struct {
 		name        string
 		model       string
-		wantModel   string
+		wantModel   *string
 		wantErr     bool
 		setupFunc   func()
 		cleanupFunc func()
@@ -244,31 +254,31 @@ func TestModelParsing(t *testing.T) {
 		{
 			name:      "default model",
 			model:     "",
-			wantModel: "deepseek-chat", // Default value
+			wantModel: nil, // No model provided - will default via config
 			wantErr:   false,
 		},
 		{
 			name:      "deepseek-chat model",
 			model:     "deepseek-chat",
-			wantModel: "deepseek-chat",
+			wantModel: strPtr("deepseek-chat"),
 			wantErr:   false,
 		},
 		{
 			name:      "deepseek-coder model",
 			model:     "deepseek-coder",
-			wantModel: "deepseek-coder",
+			wantModel: strPtr("deepseek-coder"),
 			wantErr:   false,
 		},
 		{
 			name:      "gpt-4 model",
 			model:     "gpt-4",
-			wantModel: "gpt-4",
+			wantModel: strPtr("gpt-4"),
 			wantErr:   false,
 		},
 		{
 			name:      "model from environment variable - checked via config",
 			model:     "",
-			wantModel: "deepseek-chat", // CLI parsing doesn't read env vars directly
+			wantModel: nil, // CLI parsing doesn't read env vars directly
 			wantErr:   false,
 			setupFunc: func() {
 				os.Setenv("LLM_AGGREGATOR_MODEL", "custom-model-from-env")
@@ -280,7 +290,7 @@ func TestModelParsing(t *testing.T) {
 		{
 			name:      "explicit model overrides env",
 			model:     "explicit-model",
-			wantModel: "explicit-model",
+			wantModel: strPtr("explicit-model"),
 			wantErr:   false,
 			setupFunc: func() {
 				os.Setenv("LLM_AGGREGATOR_MODEL", "env-model-should-be-ignored")
@@ -318,8 +328,16 @@ func TestModelParsing(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("Unexpected error for model: %v", err)
-				} else if parsedArgs.Model != tt.wantModel {
-					t.Errorf("Model mismatch: want %q, got %q", tt.wantModel, parsedArgs.Model)
+				} else if (tt.wantModel == nil && parsedArgs.Model != nil) || (tt.wantModel != nil && (parsedArgs.Model == nil || *parsedArgs.Model != *tt.wantModel)) {
+					wantStr := "<nil>"
+					if tt.wantModel != nil {
+						wantStr = *tt.wantModel
+					}
+					gotStr := "<nil>"
+					if parsedArgs.Model != nil {
+						gotStr = *parsedArgs.Model
+					}
+					t.Errorf("Model mismatch: want %q, got %q", wantStr, gotStr)
 				}
 			}
 		})
@@ -327,10 +345,11 @@ func TestModelParsing(t *testing.T) {
 }
 
 func TestBaseURLParsing(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
 	tests := []struct {
 		name         string
 		baseURL      string
-		wantBaseURL  string
+		wantBaseURL  *string
 		wantErr      bool
 		setupFunc    func()
 		cleanupFunc  func()
@@ -338,31 +357,31 @@ func TestBaseURLParsing(t *testing.T) {
 		{
 			name:        "default base URL",
 			baseURL:     "",
-			wantBaseURL: "https://api.deepseek.com",
+			wantBaseURL: nil, // No base URL provided
 			wantErr:     false,
 		},
 		{
 			name:        "explicit deepseek URL",
 			baseURL:     "https://api.deepseek.com",
-			wantBaseURL: "https://api.deepseek.com",
+			wantBaseURL: strPtr("https://api.deepseek.com"),
 			wantErr:     false,
 		},
 		{
 			name:        "custom OpenAI-compatible URL",
 			baseURL:     "https://api.openai.com/v1",
-			wantBaseURL: "https://api.openai.com/v1",
+			wantBaseURL: strPtr("https://api.openai.com/v1"),
 			wantErr:     false,
 		},
 		{
 			name:        "local ollama URL",
 			baseURL:     "http://localhost:11434/v1",
-			wantBaseURL: "http://localhost:11434/v1",
+			wantBaseURL: strPtr("http://localhost:11434/v1"),
 			wantErr:     false,
 		},
 		{
 			name:        "azure openai URL",
 			baseURL:     "https://my-resource.openai.azure.com/v1",
-			wantBaseURL: "https://my-resource.openai.azure.com/v1",
+			wantBaseURL: strPtr("https://my-resource.openai.azure.com/v1"),
 			wantErr:     false,
 		},
 	}
@@ -394,8 +413,16 @@ func TestBaseURLParsing(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("Unexpected error for base-url: %v", err)
-				} else if parsedArgs.BaseURL != tt.wantBaseURL {
-					t.Errorf("BaseURL mismatch: want %q, got %q", tt.wantBaseURL, parsedArgs.BaseURL)
+				} else if (tt.wantBaseURL == nil && parsedArgs.BaseURL != nil) || (tt.wantBaseURL != nil && (parsedArgs.BaseURL == nil || *parsedArgs.BaseURL != *tt.wantBaseURL)) {
+					wantStr := "<nil>"
+					if tt.wantBaseURL != nil {
+						wantStr = *tt.wantBaseURL
+					}
+					gotStr := "<nil>"
+					if parsedArgs.BaseURL != nil {
+						gotStr = *parsedArgs.BaseURL
+					}
+					t.Errorf("BaseURL mismatch: want %q, got %q", wantStr, gotStr)
 				}
 			}
 		})
@@ -403,18 +430,22 @@ func TestBaseURLParsing(t *testing.T) {
 }
 
 func TestArgsToViperMap(t *testing.T) {
+	strPtr := func(s string) *string { return &s }
+	intPtr := func(i int) *int { return &i }
+	floatPtr := func(f float64) *float64 { return &f }
+
 	args := &Args{
 		FeedsFile:           "/tmp/feeds.txt",
 		Prompt:              "Test prompt",
-		MaxArticlesPerFeed:  5,
-		MaxDaysOld:          14,
-		MaxTotalArticles:    50,
+		MaxArticlesPerFeed:  intPtr(5),
+		MaxDaysOld:          intPtr(14),
+		MaxTotalArticles:    intPtr(50),
 		IncludeKeywords:     "linux,opensource",
 		ExcludeKeywords:     "advertisement",
-		APIKey:              "sk-test-key",
-		Model:               "custom-model",
-		MaxTokens:           2000,
-		Temperature:         0.5,
+		APIKey:              strPtr("sk-test-key"),
+		Model:               strPtr("custom-model"),
+		MaxTokens:           intPtr(2000),
+		Temperature:         floatPtr(0.5),
 		SystemPrompt:        "Custom system prompt",
 		Output:              "json",
 		OutputFile:          "/tmp/output.json",

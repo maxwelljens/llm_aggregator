@@ -49,12 +49,26 @@ Tests for the Viper-based configuration system.
 | `TestConfigLoadWithVariousSources` | Tests loading from config files and environment variables |
 | `TestViperToConfigConversion` | Verifies conversion from Viper to Config struct |
 | `TestBindCLIArgs` | Tests binding CLI arguments to Viper |
+| `TestDefaultConfig` | Verifies default configuration values |
+| `TestConfigPath` | Tests XDG-compliant config path resolution |
+| `TestConfigSaveAndLoad` | Tests config file save/load round-trip |
+| `TestConfigExists` | Tests config file existence checking |
+| `TestEnvironmentVariables` | Tests environment variable loading |
+| `TestIsZero` | Tests `isZero()` helper with all types including pointer types |
+| `TestViperToRuntimePrecedence` | Tests configuration precedence: CLI > env vars > config file > defaults |
+| `TestBindCLIArgsWithPointers` | Tests that nil/zero CLI args don't override existing values |
 
-**Configuration precedence** (highest precedence and lower):
+**Configuration precedence** (highest to lowest):
 1. CLI arguments
 2. Environment variables (`LLM_AGGREGATOR_*`)
 3. Config file (`~/.config/llm_aggregator/config.toml`)
 4. Default values
+
+> [!IMPORTANT]
+> CLI arguments only override config file values when explicitly provided. If
+> `--model` is not passed on the command line, the config file or environment
+> variable value is used. > This prevents CLI defaults from overriding
+> configuration file values.
 
 ---
 

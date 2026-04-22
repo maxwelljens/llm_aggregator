@@ -90,12 +90,16 @@ func GetViper() *viper.Viper {
 		// Set config file path
 		v.SetConfigFile(configPath)
 
+		// Debug: show what config file is being used
+
 		// Try to read config file
 		if err := v.ReadInConfig(); err != nil {
 			// If config file doesn't exist, that's OK - we'll use defaults + env vars
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 				fmt.Fprintln(os.Stderr, style.Warningf("error reading config file: %v", err))
+			} else {
 			}
+		} else {
 		}
 	}
 
@@ -161,15 +165,47 @@ func BindCLIArgs(v *viper.Viper, args map[string]any) {
 
 // isZero checks if a value is the zero value for its type.
 func isZero(v any) bool {
+	// Handle nil interface values first (before type switch)
+	if v == nil {
+		return true
+	}
 	switch val := v.(type) {
 	case string:
 		return val == ""
-	case int, int8, int16, int32, int64:
+	case int:
 		return val == 0
-	case float32, float64:
+	case int8:
 		return val == 0
+	case int16:
+		return val == 0
+	case int32:
+		return val == 0
+	case int64:
+		return val == 0
+	case float32:
+		return val == 0.0
+	case float64:
+		return val == 0.0
 	case bool:
 		return !val
+	case *string:
+		return val == nil
+	case *int:
+		return val == nil
+	case *int8:
+		return val == nil
+	case *int16:
+		return val == nil
+	case *int32:
+		return val == nil
+	case *int64:
+		return val == nil
+	case *float32:
+		return val == nil
+	case *float64:
+		return val == nil
+	case *bool:
+		return val == nil
 	default:
 		return false
 	}

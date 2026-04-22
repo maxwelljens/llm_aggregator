@@ -19,23 +19,23 @@ type Args struct {
 	Prompt    string `arg:"--prompt,required" help:"User prompt for summarisation/analysis"`
 
 	// Feed aggregation options
-	MaxArticlesPerFeed int `arg:"--max-articles-per-feed" help:"Maximum articles to fetch from each feed" default:"10"`
-	MaxDaysOld         int `arg:"--max-days-old" help:"Only include articles from the last N days (0 for all)" default:"7"`
-	MaxTotalArticles   int `arg:"--max-total-articles" help:"Maximum total articles to process" default:"20"`
+	MaxArticlesPerFeed *int `arg:"--max-articles-per-feed" help:"Maximum articles to fetch from each feed"`
+	MaxDaysOld         *int `arg:"--max-days-old" help:"Only include articles from the last N days"`
+	MaxTotalArticles   *int `arg:"--max-total-articles" help:"Maximum total articles to process"`
 
 	// Content filtering
 	IncludeKeywords string `arg:"--include-keywords" help:"Comma-separated list of keywords to include (case-insensitive)"`
 	ExcludeKeywords string `arg:"--exclude-keywords" help:"Comma-separated list of keywords to exclude (case-insensitive)"`
 
 	// LLM API options
-	APIKey      string  `arg:"--api-key" help:"OpenAI-compatible API key (default: read from LLM_AGGREGATOR_API_KEY env var)"`
-	BaseURL     string  `arg:"--base-url" help:"API base URL" default:"https://api.deepseek.com"`
-	Model       string  `arg:"--model" help:"LLM model to use" default:"deepseek-chat"`
-	MaxTokens   int     `arg:"--max-tokens" help:"Maximum tokens in response" default:"4000"`
-	Temperature float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)" default:"0.7"`
+	APIKey      *string  `arg:"--api-key" help:"OpenAI-compatible API key (default: read from LLM_AGGREGATOR_API_KEY env var)"`
+	BaseURL     *string  `arg:"--base-url" help:"API base URL"`
+	Model       *string  `arg:"--model" help:"LLM model to use"`
+	MaxTokens   *int     `arg:"--max-tokens" help:"Maximum tokens in response"`
+	Temperature *float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)"`
 
 	// Output options
-	Output          string `arg:"--output" help:"Output format" default:"text" choice:"text,json,markdown"`
+	Output          string `arg:"--output" help:"Output format" choice:"text,json,markdown"`
 	OutputFile      string `arg:"--output-file" help:"Write output to file (default: stdout)"`
 	IncludeArticles bool   `arg:"--include-articles" help:"Include original articles in JSON output"`
 
@@ -122,22 +122,56 @@ func ParseArgs() (*Args, error) {
 }
 
 // ToViperMap converts Args to a map for binding to Viper.
-// Only non-empty/non-zero values are included.
+// Only non-nil values (explicitly provided CLI flags) are included.
 func (a *Args) ToViperMap() map[string]any {
-	return map[string]any{
-		"max_articles_per_feed": a.MaxArticlesPerFeed,
-		"max_days_old":         a.MaxDaysOld,
-		"max_total_articles":   a.MaxTotalArticles,
-		"include_keywords":     a.IncludeKeywords,
-		"exclude_keywords":     a.ExcludeKeywords,
-		"api_key":              a.APIKey,
-		"base_url":             a.BaseURL,
-		"model":                a.Model,
-		"max_tokens":           a.MaxTokens,
-		"temperature":          a.Temperature,
-		"system_prompt":        a.SystemPrompt,
-		"output":               a.Output,
-		"output_file":          a.OutputFile,
-		"include_articles":     a.IncludeArticles,
+	m := map[string]any{}
+	if a.FeedsFile != "" {
+		m["feeds_file"] = a.FeedsFile
 	}
+	if a.MaxArticlesPerFeed != nil {
+		m["max_articles_per_feed"] = *a.MaxArticlesPerFeed
+	}
+	if a.MaxDaysOld != nil {
+		m["max_days_old"] = *a.MaxDaysOld
+	}
+	if a.MaxTotalArticles != nil {
+		m["max_total_articles"] = *a.MaxTotalArticles
+	}
+	if a.IncludeKeywords != "" {
+		m["include_keywords"] = a.IncludeKeywords
+	}
+	if a.ExcludeKeywords != "" {
+		m["exclude_keywords"] = a.ExcludeKeywords
+	}
+	if a.APIKey != nil {
+		m["api_key"] = *a.APIKey
+	}
+	if a.BaseURL != nil {
+		m["base_url"] = *a.BaseURL
+	}
+	if a.Model != nil {
+		m["model"] = *a.Model
+	}
+	if a.MaxTokens != nil {
+		m["max_tokens"] = *a.MaxTokens
+	}
+	if a.Temperature != nil {
+		m["temperature"] = *a.Temperature
+	}
+	if a.Prompt != "" {
+		m["prompt"] = a.Prompt
+	}
+	if a.SystemPrompt != "" {
+		m["system_prompt"] = a.SystemPrompt
+	}
+	if a.Output != "" {
+		m["output"] = a.Output
+	}
+	if a.OutputFile != "" {
+		m["output_file"] = a.OutputFile
+	}
+	if a.IncludeArticles {
+		m["include_articles"] = a.IncludeArticles
+	}
+	return m
 }
