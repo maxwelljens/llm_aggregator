@@ -104,11 +104,11 @@ func (r *Runtime) Execute(ctx context.Context) error {
 
 	r.Articles = processedArticles
 
-	// Step 3: Initialise Deepseek client
+	// Step 3: Initialise LLM client
 	r.Progress.SetStage("Connecting to LLM")
 	r.Progress.SetSubStage(fmt.Sprintf("Using model: %s", r.Model))
 
-	deepseek, err := llm.NewDeepseekClient(
+	deepseek, err := llm.NewLLMClient(
 		r.APIKey,
 		"", // default base URL
 		r.Model,
@@ -116,11 +116,11 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.Temperature,
 	)
 	if err != nil {
-		return fmt.Errorf("error initialising Deepseek client: %w", err)
+		return fmt.Errorf("error initialising LLM client: %w", err)
 	}
 	deepseek.SetLogger(progCtx) // MODIFIED: Pass the new progress context
 
-	// Step 4: Get summary from Deepseek
+	// Step 4: Get summary from LLM
 	r.Progress.SetStage("Getting summary")
 	r.Progress.SetSubStage(fmt.Sprintf("Sending %d articles to LLM", len(processedArticles)))
 
@@ -130,7 +130,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.SystemPrompt,
 	)
 	if err != nil {
-		return fmt.Errorf("error getting summary from Deepseek: %w", err)
+		return fmt.Errorf("error getting summary from LLM: %w", err)
 	}
 
 	r.Summary = summary

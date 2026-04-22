@@ -13,8 +13,8 @@ import (
 	"github.com/openai/openai-go/v3/option"
 )
 
-// DeepseekClient is a client for interacting with Deepseek API.
-type DeepseekClient struct {
+// LLMClient is a client for interacting with LLM API.
+type LLMClient struct {
 	client      openai.Client
 	model       string
 	maxTokens   int
@@ -22,20 +22,20 @@ type DeepseekClient struct {
 	logger      *progress.Context
 }
 
-// NewDeepseekClient creates a new Deepseek client.
-// apiKey: Deepseek API key (or read from LLM_AGGREGATOR_API_KEY env var)
+// NewLLMClient creates a new LLM client.
+// apiKey: LLM API key (or read from LLM_AGGREGATOR_API_KEY env var)
 // baseURL: API base URL (defaults to "https://api.deepseek.com")
 // model: Model to use (defaults to "deepseek-chat")
 // maxTokens: Maximum tokens in response (defaults to 4000)
 // temperature: Sampling temperature (0.0 to 1.0, defaults to 0.7)
-func NewDeepseekClient(apiKey, baseURL, model string, maxTokens int, temperature float64) (*DeepseekClient, error) {
+func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature float64) (*LLMClient, error) {
 	// Get API key from parameter or environment variable
 	if apiKey == "" {
 		apiKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
 	}
 	if apiKey == "" || strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf(
-			"Deepseek API key is required. " +
+			"LLM API key is required. " +
 				"Set LLM_AGGREGATOR_API_KEY environment variable or pass apiKey parameter",
 		)
 	}
@@ -54,13 +54,13 @@ func NewDeepseekClient(apiKey, baseURL, model string, maxTokens int, temperature
 		temperature = 0.7
 	}
 
-	// Create OpenAI client configured for Deepseek
+	// Create OpenAI client configured for LLM
 	client := openai.NewClient(
 		option.WithAPIKey(apiKey),
 		option.WithBaseURL(baseURL),
 	)
 
-	return &DeepseekClient{
+	return &LLMClient{
 		client:      client,
 		model:       model,
 		maxTokens:   maxTokens,
@@ -68,8 +68,8 @@ func NewDeepseekClient(apiKey, baseURL, model string, maxTokens int, temperature
 	}, nil
 }
 
-// SetLogger sets the logger for the Deepseek client
-func (dc *DeepseekClient) SetLogger(logger *progress.Context) {
+// SetLogger sets the logger for the LLM client
+func (dc *LLMClient) SetLogger(logger *progress.Context) {
 	dc.logger = logger
 }
 
@@ -77,7 +77,7 @@ func (dc *DeepseekClient) SetLogger(logger *progress.Context) {
 // articles: List of article maps
 // userPrompt: User's query/summarisation request
 // systemPrompt: Optional system prompt (defaults to helpful assistant)
-func (dc *DeepseekClient) SummariseArticles(
+func (dc *LLMClient) SummariseArticles(
 	articles []map[string]any,
 	userPrompt string,
 	systemPrompt string,
@@ -96,7 +96,7 @@ func (dc *DeepseekClient) SummariseArticles(
 	return dc.callAPIWithMessages(messages)
 }
 
-func (dc *DeepseekClient) prepareContext(articles []map[string]any) string {
+func (dc *LLMClient) prepareContext(articles []map[string]any) string {
 	contextParts := []string{}
 
 	for i, article := range articles {
@@ -143,7 +143,7 @@ func (dc *DeepseekClient) prepareContext(articles []map[string]any) string {
 	return strings.Join(contextParts, "\n")
 }
 
-func (dc *DeepseekClient) createMessages(context, userPrompt, systemPrompt string) []openai.ChatCompletionMessageParamUnion {
+func (dc *LLMClient) createMessages(context, userPrompt, systemPrompt string) []openai.ChatCompletionMessageParamUnion {
 	if systemPrompt == "" {
 		systemPrompt = `You are an expert analyst and summariser.
 You analyse content from multiple sources and provide
@@ -171,11 +171,11 @@ If relevant, note any patterns, contradictions, or notable developments.`,
 	return messages
 }
 
-func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMessageParamUnion) (string, error) {
+func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessageParamUnion) (string, error) {
 	ctx := context.Background()
 
 	if dc.logger != nil {
-		dc.logger.Logf("Calling Deepseek API with model: %s", dc.model)
+		dc.logger.Logf("Calling LLM API with model: %s", dc.model)
 	}
 
 	response, err := dc.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
@@ -189,15 +189,15 @@ func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMe
 		// Provide more specific error messages
 		errStr := err.Error()
 		if strings.Contains(errStr, "401") {
-			return "", fmt.Errorf("invalid API key. Please check your Deepseek API key")
+			return "", fmt.Errorf("invalid API key. Please check your LLM API key")
 		} else if strings.Contains(errStr, "429") {
 			return "", fmt.Errorf("rate limit exceeded. Please try again later")
 		} else if strings.Contains(errStr, "500") {
-			return "", fmt.Errorf("Deepseek API server error. Please try again later")
+			return "", fmt.Errorf("LLM API server error. Please try again later")
 		} else if strings.Contains(errStr, "404") {
 			return "", fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
 		}
-		return "", fmt.Errorf("failed to connect to Deepseek API: %w", err)
+		return "", fmt.Errorf("failed to connect to LLM API: %w", err)
 	}
 
 	// Extract text from response
@@ -210,7 +210,7 @@ func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMe
 	// Print token usage
 	if dc.logger != nil {
 		dc.logger.Logf(
-			"Deepseek API response: %d prompt tokens, %d completion tokens",
+			"LLM API response: %d prompt tokens, %d completion tokens",
 			response.Usage.PromptTokens,
 			response.Usage.CompletionTokens,
 		)
@@ -220,7 +220,7 @@ func (dc *DeepseekClient) callAPIWithMessages(messages []openai.ChatCompletionMe
 }
 
 // AnalyseWithCustomPrompt analyses articles with custom system and user prompts.
-func (dc *DeepseekClient) AnalyseWithCustomPrompt(
+func (dc *LLMClient) AnalyseWithCustomPrompt(
 	articles []map[string]any,
 	systemPrompt string,
 	userPrompt string,

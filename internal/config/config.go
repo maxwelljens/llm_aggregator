@@ -17,7 +17,7 @@ type Config struct {
 	IncludeKeywords    string `mapstructure:"include_keywords"`
 	ExcludeKeywords    string `mapstructure:"exclude_keywords"`
 
-	// Deepseek API options
+	// LLM API options
 	APIKey      string  `mapstructure:"api_key"`
 	Model       string  `mapstructure:"model"`
 	MaxTokens   int     `mapstructure:"max_tokens"`
@@ -107,7 +107,7 @@ func bindEnvVars(v *viper.Viper) {
 	v.BindEnv("include_keywords", "LLM_AGGREGATOR_INCLUDE_KEYWORDS")
 	v.BindEnv("exclude_keywords", "LLM_AGGREGATOR_EXCLUDE_KEYWORDS")
 
-	// Deepseek API options
+	// LLM API options
 	v.BindEnv("api_key", "LLM_AGGREGATOR_API_KEY")
 	v.BindEnv("model", "LLM_AGGREGATOR_MODEL")
 	v.BindEnv("max_tokens", "LLM_AGGREGATOR_MAX_TOKENS")

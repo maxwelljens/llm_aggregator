@@ -53,10 +53,10 @@ the LLM. The resulting output is printed to the terminal in your chosen format
     --exclude-keywords LIST   Comma-separated list of keywords to exclude (case‑insensitive)
     --include-articles        Include original articles in JSON output
 
-### Deepseek Configuration
+### LLM Configuration
 
     --temperature VALUE       Sampling temperature (0.0 to 1.0) (default: 0.7)
-    --system-prompt TEXT      Custom system prompt for Deepseek
+    --system-prompt TEXT      Custom system prompt for LLM
 
 ### Examples
 
@@ -136,13 +136,13 @@ max_total_articles = 20
 # include_keywords = "linux,opensource"
 # exclude_keywords = "windows,microsoft"
 
-# Deepseek API options
+# LLM API options
 # api_key = "your_api_key_here"  # Can also be set via LLM_AGGREGATOR_API_KEY env var
 model = "deepseek-chat"
 max_tokens = 4000
 temperature = 0.7
 
-# System prompt for Deepseek API
+# System prompt for LLM API
 system_prompt = """You are an expert analyst and summariser.
 You analyse content from multiple sources and provide
 concise, insightful summaries based on user requests.
@@ -158,7 +158,7 @@ include_articles = false
 
 All configuration options can also be set via environment variables with the `LLM_AGGREGATOR_` prefix:
 
-- `LLM_AGGREGATOR_API_KEY` – Deepseek API key
+- `LLM_AGGREGATOR_API_KEY` – LLM API key
 - `LLM_AGGREGATOR_MODEL` – Model name (default: "deepseek-chat")
 - `LLM_AGGREGATOR_MAX_TOKENS` – Maximum tokens in response (default: 4000)
 - `LLM_AGGREGATOR_TEMPERATURE` – Sampling temperature (default: 0.7)

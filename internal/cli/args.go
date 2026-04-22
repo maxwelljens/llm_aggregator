@@ -27,9 +27,9 @@ type Args struct {
 	IncludeKeywords string `arg:"--include-keywords" help:"Comma-separated list of keywords to include (case-insensitive)"`
 	ExcludeKeywords string `arg:"--exclude-keywords" help:"Comma-separated list of keywords to exclude (case-insensitive)"`
 
-	// Deepseek API options
+	// LLM API options
 	APIKey      string  `arg:"--api-key" help:"OpenAI-compatible API key (default: read from LLM_AGGREGATOR_API_KEY env var)"`
-	Model       string  `arg:"--model" help:"Deepseek model to use" default:"deepseek-chat"`
+	Model       string  `arg:"--model" help:"LLM model to use" default:"deepseek-chat"`
 	MaxTokens   int     `arg:"--max-tokens" help:"Maximum tokens in response" default:"4000"`
 	Temperature float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)" default:"0.7"`
 
@@ -39,7 +39,7 @@ type Args struct {
 	IncludeArticles bool   `arg:"--include-articles" help:"Include original articles in JSON output"`
 
 	// System options
-	SystemPrompt string `arg:"--system-prompt" help:"Custom system prompt for Deepseek"`
+	SystemPrompt string `arg:"--system-prompt" help:"Custom system prompt for LLM"`
 	TUI          bool   `arg:"--tui" help:"Enable TUI interface with progress bar"`
 	Verbose      bool   `arg:"-v,--verbose" help:"Show verbose output"`
 	ShowVersion  bool   `arg:"--version" help:"Show version"`
@@ -52,13 +52,13 @@ func (Args) Version() string {
 
 // Description returns the program description.
 func (Args) Description() string {
-	return `LLM Aggregator - Aggregate RSS feeds and summarise with Deepseek API
+	return `LLM Aggregator - Aggregate RSS feeds and summarise with LLM API
 
 Examples:
   # Basic usage with prompts
   llm_aggregator --feeds-file feeds.txt --prompt "What are the latest trends in free software?"
   
-  # With custom Deepseek model
+  # With custom LLM model
   llm_aggregator --feeds-file feeds.txt --prompt "Summarise tech news" --model deepseek-coder
   
   # Output to JSON file
@@ -68,7 +68,7 @@ Examples:
   llm_aggregator --feeds-file feeds.txt --prompt "Linux news" --include-keywords linux,opensource
 
 Environment Variables:
-  LLM_AGGREGATOR_API_KEY: Your Deepseek API key (required if not provided via --api-key)`
+  LLM_AGGREGATOR_API_KEY: Your LLM API key (required if not provided via --api-key)`
 }
 
 // ParseKeywords parses comma-separated keywords string into list.

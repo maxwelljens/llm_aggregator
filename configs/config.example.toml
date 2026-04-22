@@ -10,13 +10,13 @@ max_total_articles = 20
 # include_keywords = "linux,opensource"
 # exclude_keywords = "windows,microsoft"
 
-# Deepseek API options
+# LLM API options
 # api_key = "your_api_key_here"  # Can also be set via LLM_AGGREGATOR_API_KEY env var
 model = "deepseek-chat"
 max_tokens = 4000
 temperature = 0.7
 
-# System prompt for Deepseek API
+# System prompt for LLM API
 system_prompt = """You are an expert analyst and summariser.
 You analyse content from multiple sources and provide
 concise, insightful summaries based on user requests.

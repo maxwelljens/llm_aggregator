@@ -93,7 +93,7 @@ func applyConfiguration(rt *runtime.Runtime, cfg *config.Config, args *cli.Args)
 		rt.ExcludeKeywords = cli.ParseKeywords(cfg.ExcludeKeywords)
 	}
 
-	// Deepseek API options - CLI args override config
+	// LLM API options - CLI args override config
 	if args.APIKey != "" {
 		rt.APIKey = args.APIKey
 	} else if cfg.APIKey != "" {
