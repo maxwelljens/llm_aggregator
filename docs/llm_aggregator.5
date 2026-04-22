@@ -1,0 +1,297 @@
+.\" Man page for llm_aggregator configuration file
+.TH LLM_AGGREGATOR 5 "22 April 2026" "1.0.0" "File Formats"
+.SH NAME
+llm_aggregator.conf \- configuration file for llm_aggregator
+.SH DESCRIPTION
+The
+.B llm_aggregator
+configuration file is a TOML file that allows users to set default values
+for all command\-line options. This eliminates the need to specify common
+options on every invocation.
+.PP
+The configuration file is read from:
+.PP
+.RS 4
+~/.config/llm_aggregator/config.toml
+.RE
+.PP
+If the file does not exist, default values are used for all options.
+Configuration options can still be overridden by environment variables and
+command\-line arguments.
+.SH FILE STRUCTURE
+The configuration file is a TOML file with the following sections and
+options:
+.SH "[feed_aggregation]"
+Options controlling how feeds are fetched and processed.
+.TP
+.B max_articles_per_feed = \fIinteger\fR
+Maximum number of articles to fetch from each feed.
+.br
+Default: 10
+.TP
+.B max_days_old = \fIinteger\fR
+Only include articles from the last N days. Set to 0 to include all articles
+regardless of age.
+.br
+Default: 7
+.TP
+.B max_total_articles = \fIinteger\fR
+Maximum total number of articles to process across all feeds.
+.br
+Default: 20
+.SH "[filtering]"
+Options for filtering article content by keywords.
+.TP
+.B include_keywords = \fI"string"\fR
+Comma\-separated list of keywords to include. Only articles containing at
+least one of these keywords (case\-insensitive) will be processed.
+.br
+Example: include_keywords = "linux,opensource"
+.TP
+.B exclude_keywords = \fI"string"\fR
+Comma\-separated list of keywords to exclude. Any article containing one of
+these keywords (case\-insensitive) will be filtered out.
+.br
+Example: exclude_keywords = "windows,microsoft"
+.SH "[llm_api]"
+Options for the LLM API connection and behaviour.
+.TP
+.B api_key = \fI"string"\fR
+OpenAI\-compatible API key. Can also be set via the
+.B LLM_AGGREGATOR_API_KEY
+environment variable.
+.br
+Note: It is generally safer to set this via the environment variable rather
+than in the configuration file.
+.TP
+.B base_url = \fI"string"\fR
+API base URL for the LLM service.
+.br
+Default: "https://api.deepseek.com"
+.br
+Example for local Ollama: "http://localhost:11434/v1"
+.TP
+.B model = \fI"string"\fR
+LLM model to use for summarisation.
+.br
+Default: "deepseek-chat"
+.br
+Common models: deepseek-chat, deepseek-reasoner, gpt-4o, llama3
+.TP
+.B max_tokens = \fIinteger\fR
+Maximum number of tokens in the LLM response.
+.br
+Default: 4000
+.TP
+.B temperature = \fIfloat\fR
+Sampling temperature for the LLM. Must be between 0.0 and 1.0.
+.br
+Lower values produce more deterministic output, higher values produce more
+creative output.
+.br
+Default: 0.7
+.SH "[system]"
+Options related to the LLM system prompt.
+.TP
+.B system_prompt = \fI"string"\fR
+Custom system prompt for the LLM. The system prompt instructs the AI on
+how to behave and what format to use in its responses.
+.br
+.br
+Default:
+.br
+.nf
+  "You are an expert analyst and summariser.
+   You analyse content from multiple sources and provide
+   concise, insightful summaries based on user requests.
+   Focus on key points, trends, and important information."
+.fi
+.br
+.br
+The system prompt can span multiple lines using TOML's multi\-line string
+syntax (triple quotes).
+.SH "[output]"
+Options for controlling output format and destination.
+.TP
+.B output = \fI"string"\fR
+Output format. Must be one of: "text", "json", or "markdown".
+.br
+Default: "text"
+.TP
+.B output_file = \fI"string"\fR
+Optional file path to write output to. If not specified, output is written
+to stdout.
+.br
+Example: output_file = "/tmp/summary.txt"
+.TP
+.B include_articles = \fIboolean\fR
+Include the original articles in JSON output. Only applicable when
+.B output
+is set to "json".
+.br
+Default: false
+.SH EXAMPLE CONFIGURATION
+Below is a complete example configuration file:
+.PP
+.RS 4
+.nf
+# llm_aggregator configuration file
+# Location: ~/.config/llm_aggregator/config.toml
+
+# Feed aggregation options
+max_articles_per_feed = 10
+max_days_old = 7
+max_total_articles = 20
+
+# Content filtering (comma-separated keywords)
+# include_keywords = "linux,opensource"
+# exclude_keywords = "windows,microsoft"
+
+# LLM API options
+# api_key = "your_api_key_here"  # Can also be set via LLM_AGGREGATOR_API_KEY env var
+model = "deepseek-chat"
+max_tokens = 4000
+temperature = 0.7
+
+# System prompt for LLM API
+system_prompt = """You are an expert analyst and summariser.
+You analyse content from multiple sources and provide
+concise, insightful summaries based on user requests.
+Focus on key points, trends, and important information."""
+
+# Output options
+output = "text"  # Options: text, json, markdown
+# output_file = ""  # Optional output file path
+include_articles = false
+.fi
+.RE
+.PP
+A more feature\-rich example with filtering and custom API settings:
+.PP
+.RS 4
+.nf
+# Feed aggregation options
+max_articles_per_feed = 15
+max_days_old = 3
+max_total_articles = 30
+
+# Content filtering
+include_keywords = "linux,kernel,open source,AI"
+exclude_keywords = "windows, proprietary"
+
+# LLM API options
+# api_key = "sk-..."  # Use env var in production
+base_url = "https://api.deepseek.com"
+model = "deepseek-chat"
+max_tokens = 6000
+temperature = 0.5
+
+# Custom system prompt for technical content analysis
+system_prompt = """You are a technical analyst specialising in
+open source software and cybersecurity. Provide detailed,
+accurate summaries focusing on technical implications
+and practical applications."""
+
+# Output options
+output = "markdown"
+include_articles = true
+.fi
+.RE
+.SH CONFIGURATION PRECEDENCE
+Configuration options are resolved in the following order (highest to lowest):
+.TP 2
+1.
+Command\-line arguments (e.g., \-\-model, \-\-output)
+.TP 2
+2.
+Environment variables (e.g., LLM_AGGREGATOR_MODEL, LLM_AGGREGATOR_OUTPUT)
+.TP 2
+3.
+Configuration file (~/.config/llm_aggregator/config.toml)
+.TP 2
+4.
+Built\-in defaults
+.PP
+This means any option specified on the command line will override both the
+environment variable and the configuration file for that invocation.
+.SH ENVIRONMENT VARIABLES
+The following environment variables can be used to set configuration options.
+They take precedence over the configuration file but not over command\-line
+arguments.
+.TP
+.B LLM_AGGREGATOR_API_KEY
+API key for the LLM service.
+.TP
+.B LLM_AGGREGATOR_BASE_URL
+API base URL.
+.TP
+.B LLM_AGGREGATOR_MODEL
+Model name.
+.TP
+.B LLM_AGGREGATOR_MAX_TOKENS
+Maximum tokens in response.
+.TP
+.B LLM_AGGREGATOR_TEMPERATURE
+Sampling temperature.
+.TP
+.B LLM_AGGREGATOR_SYSTEM_PROMPT
+Custom system prompt.
+.TP
+.B LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED
+Maximum articles per feed.
+.TP
+.B LLM_AGGREGATOR_MAX_DAYS_OLD
+Maximum article age in days.
+.TP
+.B LLM_AGGREGATOR_MAX_TOTAL_ARTICLES
+Maximum total articles.
+.TP
+.B LLM_AGGREGATOR_INCLUDE_KEYWORDS
+Comma\-separated include keywords.
+.TP
+.B LLM_AGGREGATOR_EXCLUDE_KEYWORDS
+Comma\-separated exclude keywords.
+.TP
+.B LLM_AGGREGATOR_OUTPUT
+Output format (text/json/markdown).
+.TP
+.B LLM_AGGREGATOR_OUTPUT_FILE
+Output file path.
+.TP
+.B LLM_AGGREGATOR_INCLUDE_ARTICLES
+Include articles in JSON output (true/false).
+.SH SECURITY CONSIDERATIONS
+.TP 2
+\(bu
+Avoid storing API keys in the configuration file. Use the
+.B LLM_AGGREGATOR_API_KEY
+environment variable instead.
+.TP 2
+\(bu
+The configuration file should have restrictive permissions (mode 600) to
+prevent other users from reading your API key if it is stored in the file.
+.TP 2
+\(bu
+Command\-line arguments may be visible to other users via process listings.
+Use environment variables for sensitive data in shared environments.
+.SH FILES
+.TP
+.B ~/.config/llm_aggregator/config.toml
+Primary configuration file location.
+.TP
+.B /etc/llm_aggregator/config.toml
+System\-wide configuration (if applicable).
+.SH SEE ALSO
+.BR llm_aggregator (1)
+.SH AUTHOR
+Written by Maxwell Jensen.
+.SH REPORTING BUGS
+Report bugs at: https://codeberg.org/maxwelljensen/llm_aggregator/issues
+.SH COPYRIGHT
+Copyright \(co 2026 Maxwell Jensen.
+.br
+Licensed under the European Union Public Licence 1.2 (EUPL\-1.2).
+.br
+See
+.BR LICENCE.txt
+for full licence details.

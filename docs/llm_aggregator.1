@@ -1,0 +1,365 @@
+.\" Man page for llm_aggregator
+.TH LLM_AGGREGATOR 1 "22 April 2026" "1.0.0" "User Commands"
+.SH NAME
+llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
+.SH SYNOPSIS
+.B llm_aggregator
+[\fIOPTIONS\fR]
+.B \-\-feeds-file
+\fIFILE\fR
+.B \-\-prompt
+\fIPROMPT\fR
+.SH DESCRIPTION
+.B llm_aggregator
+is a command\-line utility that fetches articles from multiple RSS feeds,
+filters and processes the content, and sends it to an LLM through an
+OpenAI\-compatible API to generate a concise summary or analysis. It is
+designed for keeping up with news and articles from your favourite sources
+without having to read dozens or hundreds of individual posts.
+.PP
+The tool performs the following steps:
+.TP 2
+\(bu
+Parse command\-line arguments
+.TP 2
+\(bu
+Read the feeds file (plain text file containing one RSS/Atom feed URL per line)
+.TP 2
+\(bu
+Fetch and parse feeds concurrently (supports RSS, Atom, and JSON Feed formats)
+.TP 2
+\(bu
+Extract article content (title, link, publication date, author, description)
+.TP 2
+\(bu
+Filter and sort articles by age and keywords
+.TP 2
+\(bu
+Prepare the prompt with selected articles and send to the LLM
+.TP 2
+\(bu
+Format and output the result in the chosen format (text, markdown, or JSON)
+.PP
+Feeds are fetched concurrently for optimal performance, with rate limiting
+to avoid overwhelming feed servers.
+.SH REQUIRED ARGUMENTS
+.TP
+.B \-\-feeds-file \fIFILE\fR
+Path to a file containing RSS feed URLs, one per line.
+.TP
+.B \-\-prompt \fIPROMPT\fR
+User prompt for summarisation or analysis. This is sent to the LLM along
+with the article content.
+.SH OPTIONS
+.SS Feed Aggregation Options
+.TP
+.B \-\-max\-articles\-per\-feed \fIN\fR
+Maximum number of articles to fetch from each feed.
+.br
+Default: 10
+.TP
+.B \-\-max\-days\-old \fIN\fR
+Only include articles from the last N days. Set to 0 to include all articles
+regardless of age.
+.br
+Default: 7
+.TP
+.B \-\-max\-total\-articles \fIN\fR
+Maximum total number of articles to process across all feeds.
+.br
+Default: 20
+.SS Content Filtering
+.TP
+.B \-\-include\-keywords \fILIST\fR
+Comma\-separated list of keywords to include. Only articles containing at
+least one of these keywords (case\-insensitive) will be processed.
+.TP
+.B \-\-exclude\-keywords \fILIST\fR
+Comma\-separated list of keywords to exclude. Any article containing one of
+these keywords (case\-insensitive) will be filtered out.
+.SS LLM API Options
+.TP
+.B \-\-api\-key \fIKEY\fR
+OpenAI\-compatible API key. Can also be set via the
+.B LLM_AGGREGATOR_API_KEY
+environment variable.
+.TP
+.B \-\-base\-url \fIURL\fR
+API base URL for the LLM service.
+.br
+Default: https://api.deepseek.com
+.TP
+.B \-\-model \fIMODEL\fR
+LLM model to use for summarisation.
+.br
+Default: deepseek-chat
+.TP
+.B \-\-max\-tokens \fIN\fR
+Maximum number of tokens in the LLM response.
+.br
+Default: 4000
+.TP
+.B \-\-temperature \fIVALUE\fR
+Sampling temperature for the LLM (0.0 to 1.0). Higher values produce more
+creative output, lower values produce more deterministic output.
+.br
+Default: 0.7
+.TP
+.B \-\-system\-prompt \fITEXT\fR
+Custom system prompt for the LLM. If not specified, a default prompt is used.
+.SS Output Options
+.TP
+.B \-\-output \fIFORMAT\fR
+Output format. Must be one of:
+.RS 12
+.TP 4
+.B text
+Plain text output (default)
+.TP
+.B markdown
+GitHub\-flavoured markdown output
+.TP
+.B json
+JSON output with structured data
+.RE
+.TP
+.B \-\-output\-file \fIFILE\fR
+Write output to FILE instead of stdout.
+.TP
+.B \-\-include\-articles
+Include the original articles in JSON output. Only applicable when
+.B \-\-output json
+is used.
+.SS Interface Options
+.TP
+.B \-\-tui
+Enable the TUI interface with a progress bar, live article counters, and
+elapsed time display. The TUI supports keyboard navigation (j/k, arrows,
+space, b, g/G) and mouse wheel scrolling.
+.TP
+.B \-v\fR,\fB \-\-verbose
+Enable verbose logging. Shows detailed progress information during execution.
+.SS General Options
+.TP
+.B \-\-version
+Show version information and exit.
+.TP
+.B \-h\fR,\fB \-\-help
+Show this help message and exit.
+.SH ENVIRONMENT VARIABLES
+All configuration options can be set via environment variables with the
+.B LLM_AGGREGATOR_
+prefix:
+.TP
+.B LLM_AGGREGATOR_API_KEY
+LLM API key (required if not provided via \-\-api\-key)
+.TP
+.B LLM_AGGREGATOR_BASE_URL
+API base URL (default: "https://api.deepseek.com")
+.TP
+.B LLM_AGGREGATOR_MODEL
+Model name (default: "deepseek-chat")
+.TP
+.B LLM_AGGREGATOR_MAX_TOKENS
+Maximum tokens in response (default: 4000)
+.TP
+.B LLM_AGGREGATOR_TEMPERATURE
+Sampling temperature (default: 0.7)
+.TP
+.B LLM_AGGREGATOR_SYSTEM_PROMPT
+Custom system prompt
+.TP
+.B LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED
+Maximum articles per feed (default: 10)
+.TP
+.B LLM_AGGREGATOR_MAX_DAYS_OLD
+Maximum article age in days (default: 7)
+.TP
+.B LLM_AGGREGATOR_MAX_TOTAL_ARTICLES
+Maximum total articles (default: 20)
+.TP
+.B LLM_AGGREGATOR_INCLUDE_KEYWORDS
+Comma\-separated include keywords
+.TP
+.B LLM_AGGREGATOR_EXCLUDE_KEYWORDS
+Comma\-separated exclude keywords
+.TP
+.B LLM_AGGREGATOR_OUTPUT
+Output format (default: "text")
+.TP
+.B LLM_AGGREGATOR_OUTPUT_FILE
+Output file path
+.TP
+.B LLM_AGGREGATOR_INCLUDE_ARTICLES
+Include articles in JSON output (true/false)
+.SH CONFIGURATION FILE
+Configuration can also be provided via a TOML file at:
+.PP
+.RS 4
+~/.config/llm_aggregator/config.toml
+.RE
+.PP
+See
+.BR llm_aggregator (5)
+for details on the configuration file format.
+.PP
+The precedence order for configuration (highest to lowest) is:
+.RS 4
+.TP 2
+1.
+Command\-line arguments
+.TP 2
+2.
+Environment variables
+.TP 2
+3.
+Configuration file
+.TP 2
+4.
+Built\-in defaults
+.RE
+.SH EXAMPLES
+.SS Basic Usage
+.PP
+Summarise tech news from a list of feeds:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \\
+    \-\-prompt "What are the latest AI\-related trends in free software?"
+.fi
+.RE
+.SS Using TUI
+.PP
+Enable the TUI interface with a progress bar:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Summarise tech news" \-\-tui
+.fi
+.RE
+.SS JSON Output with Articles
+.PP
+Output to a JSON file with original articles included:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Analyse AI developments" \\
+    \-\-output json \-\-output-file analysis.json \-\-include\-articles
+.fi
+.RE
+.SS Filtering by Keywords
+.PP
+Only include articles about Linux or open source:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Linux news" \\
+    \-\-include\-keywords linux,opensource \-\-max\-days\-old 3
+.fi
+.RE
+.SS Custom Model and API Endpoint
+.PP
+Use a custom model with a higher token limit or local endpoint:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Code analysis" \\
+    \-\-model deepseek-reasoner \-\-max-tokens 8000
+
+llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Summarise news" \\
+    \-\-base-url "http://localhost:11434/v1" \-\-model llama3
+.fi
+.RE
+.SS Custom System Prompt
+.PP
+Provide a custom system prompt for different analysis styles:
+.PP
+.RS 4
+.nf
+llm_aggregator \-\-feeds-file feeds.txt \\
+    \-\-prompt "Identify security vulnerabilities" \\
+    \-\-system-prompt "You are a security expert. Focus on identifying \\
+potential vulnerabilities, data breaches, and security advisories."
+.fi
+.RE
+.SH FEEDS FILE FORMAT
+The feeds file should contain one RSS or Atom feed URL per line. Blank lines
+and lines starting with
+.B #
+are ignored as comments. Example:
+.PP
+.RS 4
+.nf
+# Technology news
+https://news.ycombinator.com/rss
+https://lwn.net/headlines/newrss
+
+# Programming
+https://opensource.com/feed
+https://www.phoronix.com/rss.php
+.fi
+.RE
+.SH DEPENDENCIES
+.B llm_aggregator
+uses the following Go libraries:
+.TP 2
+\(bu
+.BR gofeed
+\- RSS/Atom/JSON feed parser
+.TP 2
+\(bu
+.BR openai-go
+\- OpenAI API client
+.TP 2
+\(bu
+.BR bubbletea
+\- TUI framework
+.TP 2
+\(bu
+.BR lipgloss
+\- Terminal styling
+.TP 2
+\(bu
+.BR go-arg
+\- Argument parsing
+.TP 2
+\(bu
+.BR tiktoken-go
+\- Token counting
+.TP 2
+\(bu
+.BR viper
+\- Configuration management
+.TP 2
+\(bu
+.BR goquery
+\- HTML scraping
+.SH EXIT STATUS
+.TP
+.B 0
+Success
+.TP
+.B 1
+Error (invalid arguments, missing API key, API error, etc.)
+.SH FILES
+.TP
+.B ~/.config/llm_aggregator/config.toml
+Default location for TOML configuration file.
+.SH SEE ALSO
+.BR llm_aggregator (5)
+for configuration file documentation.
+.PP
+Project homepage: https://codeberg.org/maxwelljensen/llm_aggregator
+.SH AUTHOR
+Written by Maxwell Jensen.
+.SH REPORTING BUGS
+Report bugs at: https://codeberg.org/maxwelljensen/llm_aggregator/issues
+.SH COPYRIGHT
+Copyright \(co 2026 Maxwell Jensen.
+.br
+Licensed under the European Union Public Licence 1.2 (EUPL\-1.2).
+.br
+See
+.BR LICENCE.txt
+for full licence details.
