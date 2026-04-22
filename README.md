@@ -166,20 +166,22 @@ include_articles = false
 
 All configuration options can also be set via environment variables with the `LLM_AGGREGATOR_` prefix:
 
-- `LLM_AGGREGATOR_API_KEY` – LLM API key
-- `LLM_AGGREGATOR_BASE_URL` – API base URL (default: "https://api.deepseek.com")
-- `LLM_AGGREGATOR_MODEL` – Model name (default: "deepseek-chat")
-- `LLM_AGGREGATOR_MAX_TOKENS` – Maximum tokens in response (default: 4000)
-- `LLM_AGGREGATOR_TEMPERATURE` – Sampling temperature (default: 0.7)
-- `LLM_AGGREGATOR_SYSTEM_PROMPT` – Custom system prompt
-- `LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED` – Maximum articles per feed (default: 10)
-- `LLM_AGGREGATOR_MAX_DAYS_OLD` – Maximum article age in days (default: 7)
-- `LLM_AGGREGATOR_MAX_TOTAL_ARTICLES` – Maximum total articles (default: 20)
-- `LLM_AGGREGATOR_INCLUDE_KEYWORDS` – Comma‑separated include keywords
-- `LLM_AGGREGATOR_EXCLUDE_KEYWORDS` – Comma‑separated exclude keywords
-- `LLM_AGGREGATOR_OUTPUT` – Output format (default: "text")
-- `LLM_AGGREGATOR_OUTPUT_FILE` – Output file path
-- `LLM_AGGREGATOR_INCLUDE_ARTICLES` – Include articles in JSON output (true/false)
+| Variable | Description |
+|----------|-------------|
+| `LLM_AGGREGATOR_API_KEY` | LLM API key |
+| `LLM_AGGREGATOR_BASE_URL` | API base URL (default: "https://api.deepseek.com") |
+| `LLM_AGGREGATOR_MODEL` | Model name (default: "deepseek-chat") |
+| `LLM_AGGREGATOR_MAX_TOKENS` | Maximum tokens in response (default: 4000) |
+| `LLM_AGGREGATOR_TEMPERATURE` | Sampling temperature (default: 0.7) |
+| `LLM_AGGREGATOR_SYSTEM_PROMPT` | Custom system prompt |
+| `LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED` | Maximum articles per feed (default: 10) |
+| `LLM_AGGREGATOR_MAX_DAYS_OLD` | Maximum article age in days (default: 7) |
+| `LLM_AGGREGATOR_MAX_TOTAL_ARTICLES` | Maximum total articles (default: 20) |
+| `LLM_AGGREGATOR_INCLUDE_KEYWORDS` | Comma‑separated include keywords |
+| `LLM_AGGREGATOR_EXCLUDE_KEYWORDS` | Comma‑separated exclude keywords |
+| `LLM_AGGREGATOR_OUTPUT` | Output format (default: "text") |
+| `LLM_AGGREGATOR_OUTPUT_FILE` | Output file path |
+| `LLM_AGGREGATOR_INCLUDE_ARTICLES` | Include articles in JSON output (true/false) |
 
 The API key can be provided via `--api‑key`, `LLM_AGGREGATOR_API_KEY` environment variable, or in the configuration file.
 
@@ -201,21 +203,16 @@ Then run:
 
 `llm_aggregator` is written in Go and uses the following libraries:
 
-* [`gofeed`](https://github.com/mmcdole/gofeed): a robust RSS/Atom/JSON feed parser
-* [`openai‑go`](https://github.com/openai/openai-go): the official OpenAI API
-  library for Go
-* [`bubbletea`](https://github.com/charmbracelet/bubbletea): a TUI framework
-  for building terminal applications
-* [`lipgloss`](https://github.com/charmbracelet/lipgloss): a library for
-  styling terminal output (colours, borders, alignment)
-* [`go‑arg`](https://github.com/alexflint/go-arg): struct‑based argument
-  parsing with automatic help and version flags
-* [`tiktoken-go`](https://github.com/pkoukk/tiktoken-go): OpenAI's tiktoken
-  BPE tokeniser for accurate token counting
-* [`viper`](https://github.com/spf13/viper): configuration management with
-  support for TOML, environment variables, and flags
-* [`goquery`](https://github.com/PuerkitoBio/goquery): jQuery‑like HTML scraping
-  for extracting full article content when feed descriptions are minimal
+| Library | Description |
+|---------|-------------|
+| [`gofeed`](https://github.com/mmcdole/gofeed) | Robust RSS/Atom/JSON feed parser |
+| [`openai‑go`](https://github.com/openai/openai-go) | Official OpenAI API library for Go |
+| [`bubbletea`](https://github.com/charmbracelet/bubbletea) | TUI framework for terminal applications |
+| [`lipgloss`](https://github.com/charmbracelet/lipgloss) | Library for styling terminal output |
+| [`go‑arg`](https://github.com/alexflint/go-arg) | Struct‑based argument parsing |
+| [`tiktoken-go`](https://github.com/pkoukk/tiktoken-go) | OpenAI's tiktoken BPE tokeniser |
+| [`viper`](https://github.com/spf13/viper) | Configuration management |
+| [`goquery`](https://github.com/PuerkitoBio/goquery) | jQuery‑like HTML scraping |
 
 ## How do I build `llm_aggregator`?
 
@@ -223,11 +220,10 @@ Then run:
 
     go build ./cmd/llm_aggregator.go
 
+For information about the project's test suite, see
+[docs/TESTING.md](docs/TESTING.md).
+
 ## Licence
 
 This project is licensed under [European Union Public Licence
 1.2](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12).
-
----
-
-For information about the project's test suite, see [docs/TESTING.md](docs/TESTING.md).
