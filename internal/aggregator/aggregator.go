@@ -69,7 +69,9 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 		}
 	}
 
-	fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), filePath)
+	if fa.progressCtx != nil {
+		fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), filePath)
+	}
 
 	// Use mutex to protect shared state
 	var mu sync.Mutex
@@ -86,10 +88,14 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 		sem <- struct{}{} // Acquire semaphore
 		g.Go(func() error {
 			defer func() { <-sem }() // Release semaphore
-			fa.progressCtx.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
+			if fa.progressCtx != nil {
+				fa.progressCtx.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
+			}
 			feedArticles, err := fa.ParseFeed(feedURL)
 			if err != nil {
-				fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
+				if fa.progressCtx != nil {
+					fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
+				}
 				mu.Lock()
 				feedErrors = append(feedErrors, fmt.Sprintf("%s: %v", feedURL, err))
 				mu.Unlock()
@@ -107,7 +113,9 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 	}
 
 	if len(feedErrors) > 0 {
-		fa.progressCtx.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
+		if fa.progressCtx != nil {
+			fa.progressCtx.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
+		}
 	}
 
 	return allArticles, nil
@@ -128,7 +136,9 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 		feedTitle = feedURL
 	}
 
-	fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
+	if fa.progressCtx != nil {
+		fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
+	}
 
 	var cutoffTime time.Time
 	if fa.maxDaysOld > 0 {
@@ -140,7 +150,9 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 	for i, item := range feed.Items[:maxItems] {
 		article, err := fa.extractArticle(item, feedTitle, cutoffTime)
 		if err != nil {
-			fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, feedURL, err)
+			if fa.progressCtx != nil {
+				fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, feedURL, err)
+			}
 			continue
 		}
 		if article != nil {
@@ -168,7 +180,9 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 
 	// Check if article is too old
 	if !cutoffTime.IsZero() && !published.IsZero() && published.Before(cutoffTime) {
-		fa.progressCtx.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
+		if fa.progressCtx != nil {
+			fa.progressCtx.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
+		}
 		return nil, nil
 	}
 

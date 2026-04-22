@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"llm_aggregator/internal/defaults"
 	"llm_aggregator/internal/progress"
 
 	"github.com/openai/openai-go/v3"
@@ -40,18 +41,18 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature floa
 		)
 	}
 
-	// Set defaults
+	// Set defaults using central constants
 	if baseURL == "" {
-		baseURL = "https://api.deepseek.com"
+		baseURL = defaults.DefaultBaseURL
 	}
 	if model == "" {
-		model = "deepseek-chat"
+		model = defaults.DefaultModel
 	}
 	if maxTokens == 0 {
-		maxTokens = 4000
+		maxTokens = defaults.DefaultMaxTokens
 	}
 	if temperature == 0 {
-		temperature = 0.7
+		temperature = defaults.DefaultTemperature
 	}
 
 	// Create OpenAI client configured for LLM

@@ -3,7 +3,13 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/spf13/viper"
+
+	"llm_aggregator/internal/cli"
+	"llm_aggregator/internal/defaults"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -213,4 +219,327 @@ func hasSuffix(path, suffix string) bool {
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 || 
 		(s[0:len(substr)] == substr || contains(s[1:], substr)))
+}
+
+// TestConfigParsingAlwaysPasses ensures that parsing of options always passes.
+// This tests the integration between CLI args, config loading, and Viper.
+func TestConfigParsingAlwaysPasses(t *testing.T) {
+	// Create temporary directory for test
+	tempDir := t.TempDir()
+	oldEnv := os.Getenv("XDG_CONFIG_HOME")
+	os.Setenv("XDG_CONFIG_HOME", tempDir)
+	defer func() {
+		os.Setenv("XDG_CONFIG_HOME", oldEnv)
+	}()
+
+	// Create a test feeds file
+	feedsFile := filepath.Join(tempDir, "feeds.txt")
+	if err := os.WriteFile(feedsFile, []byte("https://example.com/feed.xml\nhttps://example.org/feed.xml"), 0644); err != nil {
+		t.Fatalf("Failed to create test feeds file: %v", err)
+	}
+
+	tests := []struct {
+		name        string
+		cliArgs     map[string]string
+		expectFeeds string
+		expectModel string
+	}{
+		{
+			name: "default configuration",
+			cliArgs: map[string]string{
+				"--feeds-file": feedsFile,
+				"--prompt":     "Test prompt",
+			},
+			expectFeeds: feedsFile,
+			expectModel: "deepseek-chat",
+		},
+		{
+			name: "custom model via CLI",
+			cliArgs: map[string]string{
+				"--feeds-file": feedsFile,
+				"--prompt":     "Test prompt",
+				"--model":      "gpt-4",
+			},
+			expectFeeds: feedsFile,
+			expectModel: "gpt-4",
+		},
+		{
+			name: "custom api key via CLI",
+			cliArgs: map[string]string{
+				"--feeds-file": feedsFile,
+				"--prompt":     "Test prompt",
+				"--api-key":    "sk-test-key-12345",
+			},
+			expectFeeds: feedsFile,
+			expectModel: "deepseek-chat",
+		},
+		{
+			name: "all CLI options",
+			cliArgs: map[string]string{
+				"--feeds-file":            feedsFile,
+				"--prompt":                "Summarise tech news",
+				"--api-key":               "sk-test-key",
+				"--model":                 "deepseek-coder",
+				"--max-articles-per-feed": "5",
+				"--max-days-old":          "3",
+				"--max-total-articles":    "15",
+				"--include-keywords":      "ai,ml",
+				"--exclude-keywords":     "advertisement",
+				"--max-tokens":            "1000",
+				"--temperature":          "0.3",
+				"--output":                "json",
+			},
+			expectFeeds: feedsFile,
+			expectModel: "deepseek-coder",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build CLI args slice
+			args := []string{"llm_aggregator"}
+			for k, v := range tt.cliArgs {
+				// Remove leading dashes for go-arg compatibility
+				key := k
+				if strings.HasPrefix(key, "--") {
+					key = key[2:]
+				}
+				args = append(args, "--"+key, v)
+			}
+
+			// Save original os.Args
+			origArgs := os.Args
+			defer func() { os.Args = origArgs }()
+			os.Args = args
+
+			// Parse arguments - this should never fail for valid inputs
+			parsedArgs, err := cli.ParseArgs()
+			if err != nil {
+				t.Fatalf("Failed to parse CLI args: %v", err)
+			}
+
+			// Verify feeds file path is set correctly
+			if parsedArgs.FeedsFile != tt.expectFeeds {
+				t.Errorf("FeedsFile = %q, want %q", parsedArgs.FeedsFile, tt.expectFeeds)
+			}
+
+			// Verify prompt is set
+			if parsedArgs.Prompt == "" {
+				t.Error("Prompt should not be empty")
+			}
+
+			// Verify model matches expected
+			if parsedArgs.Model != tt.expectModel {
+				t.Errorf("Model = %q, want %q", parsedArgs.Model, tt.expectModel)
+			}
+
+			// Verify API key if provided
+			if apiKey, ok := tt.cliArgs["--api-key"]; ok {
+				if parsedArgs.APIKey != apiKey {
+					t.Errorf("APIKey = %q, want %q", parsedArgs.APIKey, apiKey)
+				}
+			}
+		})
+	}
+}
+
+// TestConfigLoadWithVariousSources tests that configuration loading works
+// regardless of the source (CLI, env, config file, defaults)
+func TestConfigLoadWithVariousSources(t *testing.T) {
+	// Create temporary directory for test
+	tempDir := t.TempDir()
+	oldEnv := os.Getenv("XDG_CONFIG_HOME")
+	os.Setenv("XDG_CONFIG_HOME", tempDir)
+	defer func() {
+		os.Setenv("XDG_CONFIG_HOME", oldEnv)
+	}()
+
+	// Test 1: Config loads with saved config file
+	t.Run("load with saved config file", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.Model = "saved-model"
+		cfg.MaxArticlesPerFeed = 30
+		cfg.Temperature = 0.9
+
+		if err := cfg.Save(); err != nil {
+			t.Fatalf("Save() failed: %v", err)
+		}
+
+		loadedCfg, err := Load()
+		if err != nil {
+			t.Fatalf("Load() failed: %v", err)
+		}
+
+		if loadedCfg.Model != "saved-model" {
+			t.Errorf("Model = %q, want %q", loadedCfg.Model, "saved-model")
+		}
+		if loadedCfg.MaxArticlesPerFeed != 30 {
+			t.Errorf("MaxArticlesPerFeed = %d, want 30", loadedCfg.MaxArticlesPerFeed)
+		}
+		if loadedCfg.Temperature != 0.9 {
+			t.Errorf("Temperature = %f, want 0.9", loadedCfg.Temperature)
+		}
+	})
+
+	// Test 2: Verify DefaultConfig returns correct defaults
+	t.Run("default config has correct values", func(t *testing.T) {
+		cfg := DefaultConfig()
+
+		if cfg.MaxArticlesPerFeed != defaults.DefaultMaxArticlesPerFeed {
+			t.Errorf("MaxArticlesPerFeed = %d, want %d", cfg.MaxArticlesPerFeed, defaults.DefaultMaxArticlesPerFeed)
+		}
+		if cfg.MaxDaysOld != defaults.DefaultMaxDaysOld {
+			t.Errorf("MaxDaysOld = %d, want %d", cfg.MaxDaysOld, defaults.DefaultMaxDaysOld)
+		}
+		if cfg.MaxTotalArticles != defaults.DefaultMaxTotalArticles {
+			t.Errorf("MaxTotalArticles = %d, want %d", cfg.MaxTotalArticles, defaults.DefaultMaxTotalArticles)
+		}
+		if cfg.BaseURL != defaults.DefaultBaseURL {
+			t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, defaults.DefaultBaseURL)
+		}
+		if cfg.Model != defaults.DefaultModel {
+			t.Errorf("Model = %q, want %q", cfg.Model, defaults.DefaultModel)
+		}
+		if cfg.MaxTokens != defaults.DefaultMaxTokens {
+			t.Errorf("MaxTokens = %d, want %d", cfg.MaxTokens, defaults.DefaultMaxTokens)
+		}
+		if cfg.Temperature != defaults.DefaultTemperature {
+			t.Errorf("Temperature = %f, want %f", cfg.Temperature, defaults.DefaultTemperature)
+		}
+		if cfg.Output != defaults.DefaultOutput {
+			t.Errorf("Output = %q, want %q", cfg.Output, defaults.DefaultOutput)
+		}
+		if cfg.IncludeArticles != defaults.DefaultIncludeArticles {
+			t.Errorf("IncludeArticles = %v, want %v", cfg.IncludeArticles, defaults.DefaultIncludeArticles)
+		}
+	})
+
+	// Test 3: Verify ConfigExists works correctly
+	t.Run("config exists check", func(t *testing.T) {
+		// Should not exist initially (new temp dir)
+		exists, err := ConfigExists()
+		if err != nil {
+			t.Fatalf("ConfigExists() failed: %v", err)
+		}
+
+		// Create a config
+		cfg := DefaultConfig()
+		if err := cfg.Save(); err != nil {
+			t.Fatalf("Save() failed: %v", err)
+		}
+
+		// Now should exist
+		exists, err = ConfigExists()
+		if err != nil {
+			t.Fatalf("ConfigExists() failed after save: %v", err)
+		}
+		if !exists {
+			t.Error("ConfigExists() should return true after saving")
+		}
+	})
+}
+
+// TestViperToConfigConversion tests the ViperToConfig conversion function.
+func TestViperToConfigConversion(t *testing.T) {
+	// Create a fresh viper instance
+	v := viper.New()
+	v.Set("max_articles_per_feed", 15)
+	v.Set("max_days_old", 14)
+	v.Set("max_total_articles", 50)
+	v.Set("include_keywords", "ai,ml")
+	v.Set("exclude_keywords", "spam")
+	v.Set("api_key", "sk-test-key")
+	v.Set("base_url", "https://api.example.com")
+	v.Set("model", "test-model")
+	v.Set("max_tokens", 3000)
+	v.Set("temperature", 0.5)
+	v.Set("system_prompt", "Test system prompt")
+	v.Set("output", "markdown")
+	v.Set("output_file", "/tmp/output.md")
+	v.Set("include_articles", true)
+
+	cfg := ViperToConfig(v)
+
+	if cfg.MaxArticlesPerFeed != 15 {
+		t.Errorf("MaxArticlesPerFeed = %d, want 15", cfg.MaxArticlesPerFeed)
+	}
+	if cfg.MaxDaysOld != 14 {
+		t.Errorf("MaxDaysOld = %d, want 14", cfg.MaxDaysOld)
+	}
+	if cfg.MaxTotalArticles != 50 {
+		t.Errorf("MaxTotalArticles = %d, want 50", cfg.MaxTotalArticles)
+	}
+	if cfg.IncludeKeywords != "ai,ml" {
+		t.Errorf("IncludeKeywords = %q, want %q", cfg.IncludeKeywords, "ai,ml")
+	}
+	if cfg.ExcludeKeywords != "spam" {
+		t.Errorf("ExcludeKeywords = %q, want %q", cfg.ExcludeKeywords, "spam")
+	}
+	if cfg.APIKey != "sk-test-key" {
+		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "sk-test-key")
+	}
+	if cfg.BaseURL != "https://api.example.com" {
+		t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, "https://api.example.com")
+	}
+	if cfg.Model != "test-model" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "test-model")
+	}
+	if cfg.MaxTokens != 3000 {
+		t.Errorf("MaxTokens = %d, want 3000", cfg.MaxTokens)
+	}
+	if cfg.Temperature != 0.5 {
+		t.Errorf("Temperature = %f, want 0.5", cfg.Temperature)
+	}
+	if cfg.SystemPrompt != "Test system prompt" {
+		t.Errorf("SystemPrompt = %q, want %q", cfg.SystemPrompt, "Test system prompt")
+	}
+	if cfg.Output != "markdown" {
+		t.Errorf("Output = %q, want %q", cfg.Output, "markdown")
+	}
+	if cfg.OutputFile != "/tmp/output.md" {
+		t.Errorf("OutputFile = %q, want %q", cfg.OutputFile, "/tmp/output.md")
+	}
+	if cfg.IncludeArticles != true {
+		t.Errorf("IncludeArticles = %v, want true", cfg.IncludeArticles)
+	}
+}
+
+// TestBindCLIArgs tests the BindCLIArgs function.
+func TestBindCLIArgs(t *testing.T) {
+	// Create a fresh viper instance with defaults
+	v := viper.New()
+	v.SetDefault("model", "default-model")
+	v.SetDefault("max_tokens", 1000)
+
+	// Bind CLI args with override values
+	args := map[string]any{
+		"model":      "cli-model",
+		"max_tokens": 2000,
+	}
+	BindCLIArgs(v, args)
+
+	if v.GetString("model") != "cli-model" {
+		t.Errorf("model = %q, want %q", v.GetString("model"), "cli-model")
+	}
+	if v.GetInt("max_tokens") != 2000 {
+		t.Errorf("max_tokens = %d, want %d", v.GetInt("max_tokens"), 2000)
+	}
+
+	// Test that zero/empty values don't override
+	v2 := viper.New()
+	v2.SetDefault("model", "default-model")
+	v2.SetDefault("temperature", 0.7)
+
+	args2 := map[string]any{
+		"model":      "", // Empty string should not override
+		"temperature": 0,  // Zero should not override
+	}
+	BindCLIArgs(v2, args2)
+
+	if v2.GetString("model") != "default-model" {
+		t.Errorf("model = %q, want %q (empty should not override)", v2.GetString("model"), "default-model")
+	}
+	if v2.GetFloat64("temperature") != 0.7 {
+		t.Errorf("temperature = %f, want %f (zero should not override)", v2.GetFloat64("temperature"), 0.7)
+	}
 }

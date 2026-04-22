@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	"llm_aggregator/internal/cli"
+	"llm_aggregator/internal/defaults"
 	"llm_aggregator/internal/progress"
 	"llm_aggregator/internal/runtime"
 )
@@ -23,6 +24,7 @@ type Config struct {
 
 	// LLM API options
 	APIKey      string  `mapstructure:"api_key"`
+	BaseURL     string  `mapstructure:"base_url"`
 	Model       string  `mapstructure:"model"`
 	MaxTokens   int     `mapstructure:"max_tokens"`
 	Temperature float64 `mapstructure:"temperature"`
@@ -39,18 +41,16 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		MaxArticlesPerFeed: 10,
-		MaxDaysOld:         7,
-		MaxTotalArticles:   20,
-		Model:              "deepseek-chat",
-		MaxTokens:          4000,
-		Temperature:        0.7,
-		SystemPrompt: `You are an expert analyst and summariser.
-You analyse content from multiple sources and provide
-concise, insightful summaries based on user requests.
-Focus on key points, trends, and important information.`,
-		Output:          "text",
-		IncludeArticles: false,
+		MaxArticlesPerFeed: defaults.DefaultMaxArticlesPerFeed,
+		MaxDaysOld:         defaults.DefaultMaxDaysOld,
+		MaxTotalArticles:   defaults.DefaultMaxTotalArticles,
+		Model:              defaults.DefaultModel,
+		BaseURL:            defaults.DefaultBaseURL,
+		MaxTokens:          defaults.DefaultMaxTokens,
+		Temperature:        defaults.DefaultTemperature,
+		SystemPrompt:       defaults.DefaultSystemPrompt,
+		Output:             defaults.DefaultOutput,
+		IncludeArticles:    defaults.DefaultIncludeArticles,
 	}
 }
 
@@ -110,24 +110,22 @@ func setDefaults() {
 // setDefaultsOn sets default values on the given viper instance.
 func setDefaultsOn(v *viper.Viper) {
 	// Feed aggregation defaults
-	v.SetDefault("max_articles_per_feed", 10)
-	v.SetDefault("max_days_old", 7)
-	v.SetDefault("max_total_articles", 20)
+	v.SetDefault("max_articles_per_feed", defaults.DefaultMaxArticlesPerFeed)
+	v.SetDefault("max_days_old", defaults.DefaultMaxDaysOld)
+	v.SetDefault("max_total_articles", defaults.DefaultMaxTotalArticles)
 
 	// LLM API defaults
-	v.SetDefault("model", "deepseek-chat")
-	v.SetDefault("max_tokens", 4000)
-	v.SetDefault("temperature", 0.7)
+	v.SetDefault("base_url", defaults.DefaultBaseURL)
+	v.SetDefault("model", defaults.DefaultModel)
+	v.SetDefault("max_tokens", defaults.DefaultMaxTokens)
+	v.SetDefault("temperature", defaults.DefaultTemperature)
 
 	// System prompt default
-	v.SetDefault("system_prompt", `You are an expert analyst and summariser.
-You analyse content from multiple sources and provide
-concise, insightful summaries based on user requests.
-Focus on key points, trends, and important information.`)
+	v.SetDefault("system_prompt", defaults.DefaultSystemPrompt)
 
 	// Output defaults
-	v.SetDefault("output", "text")
-	v.SetDefault("include_articles", false)
+	v.SetDefault("output", defaults.DefaultOutput)
+	v.SetDefault("include_articles", defaults.DefaultIncludeArticles)
 }
 
 // ViperToConfig converts viper configuration to a Config struct.
@@ -139,6 +137,7 @@ func ViperToConfig(v *viper.Viper) *Config {
 		IncludeKeywords:    v.GetString("include_keywords"),
 		ExcludeKeywords:    v.GetString("exclude_keywords"),
 		APIKey:             v.GetString("api_key"),
+		BaseURL:            v.GetString("base_url"),
 		Model:              v.GetString("model"),
 		MaxTokens:          v.GetInt("max_tokens"),
 		Temperature:        v.GetFloat64("temperature"),
@@ -200,6 +199,7 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 
 	// LLM API options
 	rt.APIKey = v.GetString("api_key")
+	rt.BaseURL = v.GetString("base_url")
 	rt.Model = v.GetString("model")
 	rt.MaxTokens = v.GetInt("max_tokens")
 	rt.Temperature = v.GetFloat64("temperature")
@@ -226,6 +226,7 @@ func bindEnvVars(v *viper.Viper) {
 
 	// LLM API options
 	v.BindEnv("api_key", "LLM_AGGREGATOR_API_KEY")
+	v.BindEnv("base_url", "LLM_AGGREGATOR_BASE_URL")
 	v.BindEnv("model", "LLM_AGGREGATOR_MODEL")
 	v.BindEnv("max_tokens", "LLM_AGGREGATOR_MAX_TOKENS")
 	v.BindEnv("temperature", "LLM_AGGREGATOR_TEMPERATURE")
@@ -276,6 +277,7 @@ func (c *Config) Save() error {
 	v.Set("include_keywords", c.IncludeKeywords)
 	v.Set("exclude_keywords", c.ExcludeKeywords)
 	v.Set("api_key", c.APIKey)
+	v.Set("base_url", c.BaseURL)
 	v.Set("model", c.Model)
 	v.Set("max_tokens", c.MaxTokens)
 	v.Set("temperature", c.Temperature)

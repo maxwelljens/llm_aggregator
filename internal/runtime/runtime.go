@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"llm_aggregator/internal/aggregator"
+	"llm_aggregator/internal/defaults"
 	"llm_aggregator/internal/llm"
 	"llm_aggregator/internal/output"
 	"llm_aggregator/internal/processor"
@@ -24,6 +25,7 @@ type Runtime struct {
 	IncludeKeywords    []string
 	ExcludeKeywords    []string
 	APIKey             string
+	BaseURL            string
 	Model              string
 	MaxTokens          int
 	Temperature        float64
@@ -46,13 +48,14 @@ type Runtime struct {
 // NewRuntime creates a new runtime with default values
 func NewRuntime() *Runtime {
 	return &Runtime{
-		MaxArticlesPerFeed: 10,
-		MaxDaysOld:         7,
-		MaxTotalArticles:   50,
-		Model:              "deepseek-chat",
-		MaxTokens:          2000,
-		Temperature:        0.7,
-		Output:             "text",
+		MaxArticlesPerFeed: defaults.DefaultMaxArticlesPerFeed,
+		MaxDaysOld:         defaults.DefaultMaxDaysOld,
+		MaxTotalArticles:   defaults.DefaultMaxTotalArticles,
+		Model:              defaults.DefaultModel,
+		BaseURL:            defaults.DefaultBaseURL,
+		MaxTokens:          defaults.DefaultMaxTokens,
+		Temperature:        defaults.DefaultTemperature,
+		Output:             defaults.DefaultOutput,
 		Progress:           &progress.NoopLogger{},
 	}
 }
@@ -71,7 +74,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.MaxArticlesPerFeed,
 		r.MaxDaysOld,
 		5000,    // max content length
-		progCtx, // MODIFIED: Pass the new progress context
+		progCtx, // Pass the new progress context
 	)
 
 	articles, err := feedAgg.ParseFeedsFromFile(r.FeedsFile)
@@ -93,7 +96,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.IncludeKeywords,
 		r.ExcludeKeywords,
 	)
-	contentProc.SetLogger(progCtx) // MODIFIED: Pass the new progress context
+	contentProc.SetLogger(progCtx) // Pass the new progress context
 
 	processedArticles := contentProc.ProcessArticles(articles, "date", true)
 
@@ -110,7 +113,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 
 	llm, err := llm.NewLLMClient(
 		r.APIKey,
-		"", // default base URL
+		r.BaseURL,
 		r.Model,
 		r.MaxTokens,
 		r.Temperature,

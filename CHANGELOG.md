@@ -6,6 +6,35 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-22
+
+### Added
+
+- **Comprehensive unit test suite**, including CLI argument tests
+  (`--feeds-file`, `--prompt`, `--api-key`, `--model`, `--base-url`),
+  configuration tests, aggregator tests, output formatter tests, processor
+  tests and defaults tests.
+- **`--base-url` CLI option**: configure custom API endpoints for different LLM
+  providers. Should support any OpenAI-compatible provider.
+  - Environment variable: `LLM_AGGREGATOR_BASE_URL`
+- `internal/defaults` package
+- `docs/TESTING.md` which contains a comprehensive testing guide with test
+  descriptions
+
+### Changed
+
+- **Configuration defaults**: All packages now use `defaults.Default*` constants
+  - `internal/config`: Uses `defaults.Default*` for default values
+  - `internal/runtime`: Uses `defaults.Default*` for runtime defaults
+  - `internal/llm`: Uses `defaults.Default*` for LLM client defaults
+
+### Fixed
+
+- `nil` pointer safety in aggregator
+  - Added nil checks for `progressCtx` across all log statements
+  - `FeedAggregator` now works correctly when progress context is nil
+  - Tests use `NewFeedAggregatorWithProgress` with explicit progress context
+
 ## [0.5.0] - 2026-04-22
 
 ### Added

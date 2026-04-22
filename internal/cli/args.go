@@ -29,6 +29,7 @@ type Args struct {
 
 	// LLM API options
 	APIKey      string  `arg:"--api-key" help:"OpenAI-compatible API key (default: read from LLM_AGGREGATOR_API_KEY env var)"`
+	BaseURL     string  `arg:"--base-url" help:"API base URL" default:"https://api.deepseek.com"`
 	Model       string  `arg:"--model" help:"LLM model to use" default:"deepseek-chat"`
 	MaxTokens   int     `arg:"--max-tokens" help:"Maximum tokens in response" default:"4000"`
 	Temperature float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)" default:"0.7"`
@@ -126,6 +127,7 @@ func (a *Args) ToViperMap() map[string]any {
 		"include_keywords":     a.IncludeKeywords,
 		"exclude_keywords":     a.ExcludeKeywords,
 		"api_key":              a.APIKey,
+		"base_url":             a.BaseURL,
 		"model":                a.Model,
 		"max_tokens":           a.MaxTokens,
 		"temperature":          a.Temperature,

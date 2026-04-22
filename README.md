@@ -32,6 +32,7 @@ the LLM. The resulting output is printed to the terminal in your chosen format
     --prompt PROMPT           User prompt for summarisation/analysis
     --api-key KEY             API key (default: read from $LLM_AGGREGATOR_API_KEY)
     --model MODEL             Model to use (default: deepseek-chat)
+    --base-url URL            API base URL (default: https://api.deepseek.com)
     --max-tokens N            Maximum tokens in response (default: 4000)
     --output FORMAT           Output format: text, markdown, or json (default: text)
     --output-file FILE        Write output to FILE instead of stdout
@@ -75,6 +76,10 @@ llm_aggregator --feeds-file feeds.txt --prompt "Linux news" \
 # Use a custom model and higher token limit
 llm_aggregator --feeds-file feeds.txt --prompt "Code analysis" \
     --model deepseek-reasoner --max-tokens 8000
+
+# Use a custom API endpoint (e.g., local Ollama)
+llm_aggregator --feeds-file feeds.txt --prompt "Summarise news" \
+    --base-url "http://localhost:11434/v1" --model llama3
 
 # Show version information
 llm_aggregator --version
@@ -140,6 +145,7 @@ max_total_articles = 20
 
 # LLM API options
 # api_key = "your_api_key_here"  # Can also be set via LLM_AGGREGATOR_API_KEY env var
+# base_url = "https://api.deepseek.com"  # Optional custom API endpoint
 model = "deepseek-chat"
 max_tokens = 4000
 temperature = 0.7
@@ -161,6 +167,7 @@ include_articles = false
 All configuration options can also be set via environment variables with the `LLM_AGGREGATOR_` prefix:
 
 - `LLM_AGGREGATOR_API_KEY` – LLM API key
+- `LLM_AGGREGATOR_BASE_URL` – API base URL (default: "https://api.deepseek.com")
 - `LLM_AGGREGATOR_MODEL` – Model name (default: "deepseek-chat")
 - `LLM_AGGREGATOR_MAX_TOKENS` – Maximum tokens in response (default: 4000)
 - `LLM_AGGREGATOR_TEMPERATURE` – Sampling temperature (default: 0.7)
@@ -220,3 +227,7 @@ Then run:
 
 This project is licensed under [European Union Public Licence
 1.2](https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12).
+
+---
+
+For information about the project's test suite, see [docs/TESTING.md](docs/TESTING.md).
