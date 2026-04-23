@@ -229,24 +229,3 @@ func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessage
 
 	return outputText, nil
 }
-
-// AnalyseWithCustomPrompt analyses articles with custom system and user prompts.
-func (dc *LLMClient) AnalyseWithCustomPrompt(
-	articles []map[string]any,
-	systemPrompt string,
-	userPrompt string,
-) (string, error) {
-	context := dc.prepareContext(articles)
-
-	// Create messages for chat completion API
-	messages := []openai.ChatCompletionMessageParamUnion{
-		openai.SystemMessage(systemPrompt),
-		openai.UserMessage(fmt.Sprintf(`Here are articles from various RSS feeds:
-
-%s
-
-%s`, context, userPrompt)),
-	}
-
-	return dc.callAPIWithMessages(messages)
-}

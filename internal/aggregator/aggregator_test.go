@@ -57,33 +57,6 @@ const malformedRSSFeed = `<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>`
 
-func TestNewFeedAggregator(t *testing.T) {
-	tests := []struct {
-		name              string
-		maxArticlesPerFeed int
-		maxDaysOld        int
-		maxContentLength  int
-		wantNil           bool
-	}{
-		{"standard config", 10, 7, 5000, false},
-		{"zero max articles", 0, 7, 5000, false},
-		{"zero days old", 10, 0, 5000, false},
-		{"all zeros", 0, 0, 0, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			fa := NewFeedAggregator(tt.maxArticlesPerFeed, tt.maxDaysOld, tt.maxContentLength)
-			if tt.wantNil && fa != nil {
-				t.Error("Expected nil FeedAggregator")
-			}
-			if !tt.wantNil && fa == nil {
-				t.Error("Expected non-nil FeedAggregator")
-			}
-		})
-	}
-}
-
 func TestNewFeedAggregatorWithProgress(t *testing.T) {
 	t.Run("with nil progress context", func(t *testing.T) {
 		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
@@ -97,7 +70,7 @@ func TestNewFeedAggregatorWithProgress(t *testing.T) {
 }
 
 func TestParseFeedsFromFileNotFound(t *testing.T) {
-	fa := NewFeedAggregator(10, 7, 5000)
+	fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
 
 	_, err := fa.ParseFeedsFromFile("/nonexistent/path/to/feeds.txt")
 	if err == nil {
@@ -117,7 +90,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		fa := NewFeedAggregator(10, 7, 5000)
+		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
 		articles, err := fa.ParseFeedsFromFile(tmpFile)
 
 		// Empty file should not cause an error
@@ -134,7 +107,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		fa := NewFeedAggregator(10, 7, 5000)
+		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
 		articles, err := fa.ParseFeedsFromFile(tmpFile)
 
 		if err != nil {
@@ -151,7 +124,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		fa := NewFeedAggregator(10, 7, 5000)
+		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
 		// This will fail to fetch but shouldn't crash
 		_, err := fa.ParseFeedsFromFile(tmpFile)
 

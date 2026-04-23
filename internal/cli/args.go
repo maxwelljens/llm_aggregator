@@ -104,6 +104,11 @@ func ParseArgs() (*Args, error) {
 
 // ToViperMap converts Args to a map for binding to Viper.
 // Only non-nil values (explicitly provided CLI flags) are included.
+//
+// NOTE: FeedsFile and Prompt are strings (not pointers), so they're ALWAYS
+// included if non-empty. This differs from optional fields which use pointer
+// types to detect explicit provision vs. default zero values. See isZero() in
+// config package.
 func (a *Args) ToViperMap() map[string]any {
 	m := map[string]any{}
 	if a.FeedsFile != "" {

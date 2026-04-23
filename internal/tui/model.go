@@ -401,29 +401,6 @@ type ErrorMsg struct {
 	Error string
 }
 
-func Step(step int, status string) tea.Cmd {
-	return func() tea.Msg {
-		return StepMsg{Step: step, Status: status}
-	}
-}
-
-func StepWithCounts(step int, status string, articles, processed int) tea.Cmd {
-	return func() tea.Msg {
-		return StepMsg{
-			Step:           step,
-			Status:         status,
-			ArticlesCount:  articles,
-			ProcessedCount: processed,
-		}
-	}
-}
-
-func Error(err string) tea.Cmd {
-	return func() tea.Msg {
-		return ErrorMsg{Error: err}
-	}
-}
-
 // viewSummary renders the summary view with scrolling support.
 func (m *Model) viewSummary() string {
 	var sb strings.Builder

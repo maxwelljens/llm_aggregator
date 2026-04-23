@@ -30,7 +30,7 @@ the LLM. The resulting output is printed to the terminal in your chosen format
 
 ### Basic Options
 
-    -f, --feeds-file FILE    Path to file containing RSS feed URLs (one per line)  [required]
+    -f, --feeds-file FILE    Path to file containing RSS feed URLs (one per line)   [required]
     -p, --prompt PROMPT      User prompt for summarisation/analysis                 [required]
     --api-key KEY            API key (default: read from $LLM_AGGREGATOR_API_KEY)
     -m, --model MODEL        Model to use (default: deepseek-chat)

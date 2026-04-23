@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"llm_aggregator/internal/aggregator"
-	"llm_aggregator/internal/defaults"
+
 	"llm_aggregator/internal/llm"
 	"llm_aggregator/internal/output"
 	"llm_aggregator/internal/processor"
@@ -43,21 +43,6 @@ type Runtime struct {
 
 	// Logger for verbose output
 	Progress progress.Progress
-}
-
-// NewRuntime creates a new runtime with default values
-func NewRuntime() *Runtime {
-	return &Runtime{
-		MaxArticlesPerFeed: defaults.DefaultMaxArticlesPerFeed,
-		MaxDaysOld:         defaults.DefaultMaxDaysOld,
-		MaxTotalArticles:   defaults.DefaultMaxTotalArticles,
-		Model:              defaults.DefaultModel,
-		BaseURL:            defaults.DefaultBaseURL,
-		MaxTokens:          defaults.DefaultMaxTokens,
-		Temperature:        defaults.DefaultTemperature,
-		Output:             defaults.DefaultOutput,
-		Progress:           &progress.NoopLogger{},
-	}
 }
 
 // Execute runs the full aggregation pipeline

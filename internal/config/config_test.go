@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,205 +10,8 @@ import (
 	"github.com/spf13/viper"
 
 	"llm_aggregator/internal/cli"
-	"llm_aggregator/internal/defaults"
 )
 
-func TestDefaultConfig(t *testing.T) {
-	cfg := DefaultConfig()
-	
-	if cfg.MaxArticlesPerFeed != 10 {
-		t.Errorf("Expected MaxArticlesPerFeed = 10, got %d", cfg.MaxArticlesPerFeed)
-	}
-	
-	if cfg.MaxDaysOld != 7 {
-		t.Errorf("Expected MaxDaysOld = 7, got %d", cfg.MaxDaysOld)
-	}
-	
-	if cfg.MaxTotalArticles != 20 {
-		t.Errorf("Expected MaxTotalArticles = 20, got %d", cfg.MaxTotalArticles)
-	}
-	
-	if cfg.Model != "deepseek-chat" {
-		t.Errorf("Expected Model = 'deepseek-chat', got %s", cfg.Model)
-	}
-	
-	if cfg.MaxTokens != 4000 {
-		t.Errorf("Expected MaxTokens = 4000, got %d", cfg.MaxTokens)
-	}
-	
-	if cfg.Temperature != 0.7 {
-		t.Errorf("Expected Temperature = 0.7, got %f", cfg.Temperature)
-	}
-	
-	expectedPrompt := `You are an expert analyst and summariser.
-You analyse content from multiple sources and provide
-concise, insightful summaries based on user requests.
-Focus on key points, trends, and important information.`
-	
-	if cfg.SystemPrompt != expectedPrompt {
-		t.Errorf("SystemPrompt doesn't match expected default")
-	}
-	
-	if cfg.Output != "text" {
-		t.Errorf("Expected Output = 'text', got %s", cfg.Output)
-	}
-}
-
-func TestConfigPath(t *testing.T) {
-	path, err := GetConfigPath()
-	if err != nil {
-		t.Fatalf("Failed to get config path: %v", err)
-	}
-	
-	// Should end with .config/llm_aggregator/config.toml
-	expectedSuffix := filepath.Join(".config", "llm_aggregator", "config.toml")
-	if !hasSuffix(path, expectedSuffix) {
-		t.Errorf("Config path %s doesn't end with %s", path, expectedSuffix)
-	}
-}
-
-func TestConfigSaveAndLoad(t *testing.T) {
-	// Create temporary directory for test
-	tempDir := t.TempDir()
-	oldEnv := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
-	defer os.Setenv("XDG_CONFIG_HOME", oldEnv)
-	
-	cfg := DefaultConfig()
-	cfg.SystemPrompt = "Test system prompt"
-	cfg.Model = "test-model"
-	cfg.MaxTokens = 1234
-	
-	// Save config
-	if err := cfg.Save(); err != nil {
-		t.Fatalf("Failed to save config: %v", err)
-	}
-	
-	// Verify file exists
-	configPath, err := GetConfigPath()
-	if err != nil {
-		t.Fatalf("Failed to get config path: %v", err)
-	}
-	
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		t.Fatalf("Config file not created at %s", configPath)
-	}
-	
-	// Load config
-	loadedCfg, err := Load()
-	if err != nil {
-		t.Fatalf("Failed to load config: %v", err)
-	}
-	
-	if !loadedCfg.IsLoaded() {
-		t.Error("Config should be marked as loaded")
-	}
-	
-	if loadedCfg.SystemPrompt != cfg.SystemPrompt {
-		t.Errorf("SystemPrompt mismatch: expected %q, got %q", cfg.SystemPrompt, loadedCfg.SystemPrompt)
-	}
-	
-	if loadedCfg.Model != cfg.Model {
-		t.Errorf("Model mismatch: expected %s, got %s", cfg.Model, loadedCfg.Model)
-	}
-	
-	if loadedCfg.MaxTokens != cfg.MaxTokens {
-		t.Errorf("MaxTokens mismatch: expected %d, got %d", cfg.MaxTokens, loadedCfg.MaxTokens)
-	}
-}
-
-func TestEnvironmentVariables(t *testing.T) {
-	// Create temporary directory for test
-	tempDir := t.TempDir()
-	oldEnv := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
-	defer os.Setenv("XDG_CONFIG_HOME", oldEnv)
-	
-	// Set environment variables
-	os.Setenv("LLM_AGGREGATOR_SYSTEM_PROMPT", "Env system prompt")
-	os.Setenv("LLM_AGGREGATOR_MODEL", "env-model")
-	os.Setenv("LLM_AGGREGATOR_MAX_TOKENS", "9999")
-	defer func() {
-		os.Unsetenv("LLM_AGGREGATOR_SYSTEM_PROMPT")
-		os.Unsetenv("LLM_AGGREGATOR_MODEL")
-		os.Unsetenv("LLM_AGGREGATOR_MAX_TOKENS")
-	}()
-	
-	// Load config (should pick up env vars)
-	cfg, err := Load()
-	if err != nil {
-		t.Fatalf("Failed to load config: %v", err)
-	}
-	
-	if cfg.SystemPrompt != "Env system prompt" {
-		t.Errorf("SystemPrompt should be from env var, got %q", cfg.SystemPrompt)
-	}
-	
-	if cfg.Model != "env-model" {
-		t.Errorf("Model should be from env var, got %s", cfg.Model)
-	}
-	
-	if cfg.MaxTokens != 9999 {
-		t.Errorf("MaxTokens should be from env var, got %d", cfg.MaxTokens)
-	}
-}
-
-func TestConfigExists(t *testing.T) {
-	// Create temporary directory for test
-	tempDir := t.TempDir()
-	oldEnv := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
-	defer os.Setenv("XDG_CONFIG_HOME", oldEnv)
-	
-	// Get config path to verify
-	configPath, err := GetConfigPath()
-	if err != nil {
-		t.Fatalf("Failed to get config path: %v", err)
-	}
-	
-	// Ensure it's in our temp directory
-	if !contains(configPath, tempDir) {
-		t.Logf("Config path %s not in temp dir %s", configPath, tempDir)
-	}
-	
-	// Initially should not exist
-	exists, err := ConfigExists()
-	if err != nil {
-		t.Fatalf("Failed to check config existence: %v", err)
-	}
-	
-	if exists {
-		// Config exists, maybe from previous test run
-		t.Logf("Config exists at %s, removing...", configPath)
-		os.Remove(configPath)
-		// Check again
-		exists, err = ConfigExists()
-		if err != nil {
-			t.Fatalf("Failed to check config existence after removal: %v", err)
-		}
-		if exists {
-			t.Error("Config should not exist after removal")
-		}
-	}
-	
-	// Create config
-	cfg := DefaultConfig()
-	if err := cfg.Save(); err != nil {
-		t.Fatalf("Failed to save config: %v", err)
-	}
-	
-	// Now should exist
-	exists, err = ConfigExists()
-	if err != nil {
-		t.Fatalf("Failed to check config existence: %v", err)
-	}
-	
-	if !exists {
-		t.Error("Config should exist after saving")
-	}
-}
-
-// TestIsZero tests the isZero helper function with various types including pointers.
 func TestIsZero(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -265,19 +69,22 @@ func TestViperToRuntimePrecedence(t *testing.T) {
 		os.Setenv("XDG_CONFIG_HOME", oldEnv)
 	}()
 
-	// Save a config file with known values
+	// Save a config file with known values (manually write TOML since DefaultConfig/Save don't exist)
 	configuredModel := "config-file-model"
 	configuredBaseURL := "https://config-file.example.com"
 	configuredTemperature := 0.3
+	configuredMaxTokens := 5000
 
-	cfg := DefaultConfig()
-	cfg.Model = configuredModel
-	cfg.BaseURL = configuredBaseURL
-	cfg.Temperature = configuredTemperature
-	cfg.MaxTokens = 5000
+	configContent := fmt.Sprintf(`model = "%s"
+base_url = "%s"
+temperature = %f
+max_tokens = %d
+`, configuredModel, configuredBaseURL, configuredTemperature, configuredMaxTokens)
 
-	if err := cfg.Save(); err != nil {
-		t.Fatalf("Failed to save config: %v", err)
+	configPath := filepath.Join(tempDir, "llm_aggregator", "config.toml")
+	os.MkdirAll(filepath.Dir(configPath), 0755)
+	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+		t.Fatalf("Failed to write config file: %v", err)
 	}
 
 	// Test 1: Config file should override defaults
@@ -521,7 +328,7 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 	}()
 
 	// Create a test feeds file
-	feedsFile := filepath.Join(tempDir, "feeds.txt")
+	feedsFile := tempDir + "/feeds.txt"
 	if err := os.WriteFile(feedsFile, []byte("https://example.com/feed.xml\nhttps://example.org/feed.xml"), 0644); err != nil {
 		t.Fatalf("Failed to create test feeds file: %v", err)
 	}
@@ -628,167 +435,6 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestConfigLoadWithVariousSources tests that configuration loading works
-// regardless of the source (CLI, env, config file, defaults)
-func TestConfigLoadWithVariousSources(t *testing.T) {
-	// Create temporary directory for test
-	tempDir := t.TempDir()
-	oldEnv := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
-	defer func() {
-		os.Setenv("XDG_CONFIG_HOME", oldEnv)
-	}()
-
-	// Test 1: Config loads with saved config file
-	t.Run("load with saved config file", func(t *testing.T) {
-		cfg := DefaultConfig()
-		cfg.Model = "saved-model"
-		cfg.MaxArticlesPerFeed = 30
-		cfg.Temperature = 0.9
-
-		if err := cfg.Save(); err != nil {
-			t.Fatalf("Save() failed: %v", err)
-		}
-
-		loadedCfg, err := Load()
-		if err != nil {
-			t.Fatalf("Load() failed: %v", err)
-		}
-
-		if loadedCfg.Model != "saved-model" {
-			t.Errorf("Model = %q, want %q", loadedCfg.Model, "saved-model")
-		}
-		if loadedCfg.MaxArticlesPerFeed != 30 {
-			t.Errorf("MaxArticlesPerFeed = %d, want 30", loadedCfg.MaxArticlesPerFeed)
-		}
-		if loadedCfg.Temperature != 0.9 {
-			t.Errorf("Temperature = %f, want 0.9", loadedCfg.Temperature)
-		}
-	})
-
-	// Test 2: Verify DefaultConfig returns correct defaults
-	t.Run("default config has correct values", func(t *testing.T) {
-		cfg := DefaultConfig()
-
-		if cfg.MaxArticlesPerFeed != defaults.DefaultMaxArticlesPerFeed {
-			t.Errorf("MaxArticlesPerFeed = %d, want %d", cfg.MaxArticlesPerFeed, defaults.DefaultMaxArticlesPerFeed)
-		}
-		if cfg.MaxDaysOld != defaults.DefaultMaxDaysOld {
-			t.Errorf("MaxDaysOld = %d, want %d", cfg.MaxDaysOld, defaults.DefaultMaxDaysOld)
-		}
-		if cfg.MaxTotalArticles != defaults.DefaultMaxTotalArticles {
-			t.Errorf("MaxTotalArticles = %d, want %d", cfg.MaxTotalArticles, defaults.DefaultMaxTotalArticles)
-		}
-		if cfg.BaseURL != defaults.DefaultBaseURL {
-			t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, defaults.DefaultBaseURL)
-		}
-		if cfg.Model != defaults.DefaultModel {
-			t.Errorf("Model = %q, want %q", cfg.Model, defaults.DefaultModel)
-		}
-		if cfg.MaxTokens != defaults.DefaultMaxTokens {
-			t.Errorf("MaxTokens = %d, want %d", cfg.MaxTokens, defaults.DefaultMaxTokens)
-		}
-		if cfg.Temperature != defaults.DefaultTemperature {
-			t.Errorf("Temperature = %f, want %f", cfg.Temperature, defaults.DefaultTemperature)
-		}
-		if cfg.Output != defaults.DefaultOutput {
-			t.Errorf("Output = %q, want %q", cfg.Output, defaults.DefaultOutput)
-		}
-		if cfg.IncludeArticles != defaults.DefaultIncludeArticles {
-			t.Errorf("IncludeArticles = %v, want %v", cfg.IncludeArticles, defaults.DefaultIncludeArticles)
-		}
-	})
-
-	// Test 3: Verify ConfigExists works correctly
-	t.Run("config exists check", func(t *testing.T) {
-		// Should not exist initially (new temp dir)
-		exists, err := ConfigExists()
-		if err != nil {
-			t.Fatalf("ConfigExists() failed: %v", err)
-		}
-
-		// Create a config
-		cfg := DefaultConfig()
-		if err := cfg.Save(); err != nil {
-			t.Fatalf("Save() failed: %v", err)
-		}
-
-		// Now should exist
-		exists, err = ConfigExists()
-		if err != nil {
-			t.Fatalf("ConfigExists() failed after save: %v", err)
-		}
-		if !exists {
-			t.Error("ConfigExists() should return true after saving")
-		}
-	})
-}
-
-// TestViperToConfigConversion tests the ViperToConfig conversion function.
-func TestViperToConfigConversion(t *testing.T) {
-	// Create a fresh viper instance
-	v := viper.New()
-	v.Set("max_articles_per_feed", 15)
-	v.Set("max_days_old", 14)
-	v.Set("max_total_articles", 50)
-	v.Set("include_keywords", "ai,ml")
-	v.Set("exclude_keywords", "spam")
-	v.Set("api_key", "sk-test-key")
-	v.Set("base_url", "https://api.example.com")
-	v.Set("model", "test-model")
-	v.Set("max_tokens", 3000)
-	v.Set("temperature", 0.5)
-	v.Set("system_prompt", "Test system prompt")
-	v.Set("output", "markdown")
-	v.Set("output_file", "/tmp/output.md")
-	v.Set("include_articles", true)
-
-	cfg := ViperToConfig(v)
-
-	if cfg.MaxArticlesPerFeed != 15 {
-		t.Errorf("MaxArticlesPerFeed = %d, want 15", cfg.MaxArticlesPerFeed)
-	}
-	if cfg.MaxDaysOld != 14 {
-		t.Errorf("MaxDaysOld = %d, want 14", cfg.MaxDaysOld)
-	}
-	if cfg.MaxTotalArticles != 50 {
-		t.Errorf("MaxTotalArticles = %d, want 50", cfg.MaxTotalArticles)
-	}
-	if cfg.IncludeKeywords != "ai,ml" {
-		t.Errorf("IncludeKeywords = %q, want %q", cfg.IncludeKeywords, "ai,ml")
-	}
-	if cfg.ExcludeKeywords != "spam" {
-		t.Errorf("ExcludeKeywords = %q, want %q", cfg.ExcludeKeywords, "spam")
-	}
-	if cfg.APIKey != "sk-test-key" {
-		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "sk-test-key")
-	}
-	if cfg.BaseURL != "https://api.example.com" {
-		t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, "https://api.example.com")
-	}
-	if cfg.Model != "test-model" {
-		t.Errorf("Model = %q, want %q", cfg.Model, "test-model")
-	}
-	if cfg.MaxTokens != 3000 {
-		t.Errorf("MaxTokens = %d, want 3000", cfg.MaxTokens)
-	}
-	if cfg.Temperature != 0.5 {
-		t.Errorf("Temperature = %f, want 0.5", cfg.Temperature)
-	}
-	if cfg.SystemPrompt != "Test system prompt" {
-		t.Errorf("SystemPrompt = %q, want %q", cfg.SystemPrompt, "Test system prompt")
-	}
-	if cfg.Output != "markdown" {
-		t.Errorf("Output = %q, want %q", cfg.Output, "markdown")
-	}
-	if cfg.OutputFile != "/tmp/output.md" {
-		t.Errorf("OutputFile = %q, want %q", cfg.OutputFile, "/tmp/output.md")
-	}
-	if cfg.IncludeArticles != true {
-		t.Errorf("IncludeArticles = %v, want true", cfg.IncludeArticles)
 	}
 }
 

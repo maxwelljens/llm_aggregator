@@ -22,10 +22,7 @@ type tokenizerCache struct {
 	encodings map[string]*tiktoken.Tiktoken
 }
 
-var (
-	cache     = &tokenizerCache{encodings: make(map[string]*tiktoken.Tiktoken)}
-	modelLock sync.RWMutex
-)
+var cache = &tokenizerCache{encodings: make(map[string]*tiktoken.Tiktoken)}
 
 // GetEncoding returns a Tiktoken encoding for the given encoding name.
 func GetEncoding(encodingName string) (*tiktoken.Tiktoken, error) {
@@ -104,58 +101,4 @@ func CountTokens(text string, model string) (int, error) {
 
 	tokens := enc.Encode(text, nil, nil)
 	return len(tokens), nil
-}
-
-// CountMessagesTokens counts tokens for chat API messages.
-// Based on OpenAI's official token counting method.
-func CountMessagesTokens(messages []Message, model string) (int, error) {
-	encodingName, err := EncodingForModel(model)
-	if err != nil {
-		return 0, err
-	}
-
-	enc, err := GetEncoding(encodingName)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get encoding: %w", err)
-	}
-
-	var tokensPerMessage, tokensPerName int
-	switch {
-	case strings.Contains(model, "gpt-3.5-turbo-0613"),
-		strings.Contains(model, "gpt-3.5-turbo-16k-0613"),
-		strings.Contains(model, "gpt-4-0314"),
-		strings.Contains(model, "gpt-4-32k-0314"),
-		strings.Contains(model, "gpt-4-0613"),
-		strings.Contains(model, "gpt-4-32k-0613"):
-		tokensPerMessage = 3
-		tokensPerName = 1
-	case strings.Contains(model, "gpt-3.5-turbo-0301"):
-		tokensPerMessage = 4
-		tokensPerName = -1
-	default:
-		// Use default values for other models
-		tokensPerMessage = 3
-		tokensPerName = 1
-	}
-
-	numTokens := 0
-	for _, msg := range messages {
-		numTokens += tokensPerMessage
-		numTokens += len(enc.Encode(msg.Content, nil, nil))
-		numTokens += len(enc.Encode(msg.Role, nil, nil))
-		numTokens += len(enc.Encode(msg.Name, nil, nil))
-		if msg.Name != "" {
-			numTokens += tokensPerName
-		}
-	}
-	numTokens += 3 // Every reply is primed with <|start|>assistant<|message|>
-
-	return numTokens, nil
-}
-
-// Message represents a chat message for token counting.
-type Message struct {
-	Role    string
-	Content string
-	Name    string
 }

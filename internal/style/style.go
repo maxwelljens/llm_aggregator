@@ -5,15 +5,9 @@ package style
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
-
-// Bold returns a bold style.
-func Bold(text string) string {
-	return lipgloss.NewStyle().Bold(true).Render(text)
-}
 
 // Italic returns an italic style.
 func Italic(text string) string {
@@ -31,9 +25,6 @@ var (
 
 	// Green for success messages
 	Green = Colour("2")
-
-	// Yellow for emphasis
-	Yellow = Colour("3")
 
 	// Blue for URLs
 	Blue = Colour("12")
@@ -101,11 +92,6 @@ func Success(text string) string {
 		Render("✓ " + text)
 }
 
-// Successf returns a formatted success message.
-func Successf(format string, args ...any) string {
-	return Success(fmt.Sprintf(format, args...))
-}
-
 // Filepath returns a styled filepath in cyan.
 func Filepath(filepath string) string {
 	if NoColor() {
@@ -150,14 +136,6 @@ func Heading(text string) string {
 	return lipgloss.NewStyle().Bold(true).Render(text)
 }
 
-// Section returns a styled section header.
-func Section(text string) string {
-	return lipgloss.NewStyle().
-		Bold(true).
-		Underline(true).
-		Render(text)
-}
-
 // Value returns styled value text.
 func Value(text string) string {
 	if NoColor() {
@@ -177,11 +155,6 @@ func Info(text string) string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Render("ℹ " + text)
 }
 
-// Infof returns a formatted info message.
-func Infof(format string, args ...any) string {
-	return Info(fmt.Sprintf(format, args...))
-}
-
 // Debug returns a styled debug message in grey.
 func Debug(text string) string {
 	if NoColor() {
@@ -197,57 +170,3 @@ func Debug(text string) string {
 func Debugf(format string, args ...any) string {
 	return Debug(fmt.Sprintf(format, args...))
 }
-
-// Highlight returns a highlighted text (yellow bold).
-func Highlight(text string) string {
-	if NoColor() {
-		return lipgloss.NewStyle().Bold(true).Render(text)
-	}
-	return lipgloss.NewStyle().
-		Foreground(lipgloss.Color(Yellow)).
-		Bold(true).
-		Render(text)
-}
-
-// Highlightf returns a formatted highlighted message.
-func Highlightf(format string, args ...any) string {
-	return Highlight(fmt.Sprintf(format, args...))
-}
-
-// ParseAndStyleURLs takes a string and styles any URLs found within it.
-// This is useful for processing text that may contain URLs mixed with other content.
-func ParseAndStyleURLs(text string) string {
-	// Simple URL pattern matching - matches http:// and https:// URLs
-	// This is a basic implementation; for production use, consider a regex library
-	parts := strings.Split(text, " ")
-
-	for i, part := range parts {
-		if strings.HasPrefix(part, "http://") || strings.HasPrefix(part, "https://") {
-			parts[i] = URL(part)
-		}
-	}
-
-	return strings.Join(parts, " ")
-}
-
-// ParseAndStyleFilepaths takes a string and styles any filepaths found within it.
-// This looks for paths that start with / or are relative paths containing /.
-func ParseAndStyleFilepaths(text string) string {
-	// Simple detection for filepaths - words containing / but not just URLs
-	parts := strings.Split(text, " ")
-
-	for i, part := range parts {
-		// Skip if it's already a URL (starts with http)
-		if strings.HasPrefix(part, "http://") || strings.HasPrefix(part, "https://") {
-			continue
-		}
-
-		// Check if it looks like a filepath
-		if strings.Contains(part, "/") && !strings.Contains(part, "://") {
-			parts[i] = Filepath(part)
-		}
-	}
-
-	return strings.Join(parts, " ")
-}
-

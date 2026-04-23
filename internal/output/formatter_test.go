@@ -5,8 +5,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"llm_aggregator/internal/aggregator"
 )
 
 func TestNewFormatter(t *testing.T) {
@@ -327,58 +325,6 @@ func TestCenterText(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestFormatArticleList(t *testing.T) {
-	articles := []*aggregator.Article{
-		{
-			Title:      "Test Article",
-			Link:       "https://example.com/test",
-			Content:    "Article content here",
-			SourceFeed: "Test Feed",
-			Author:     "Test Author",
-		},
-	}
-
-	t.Run("text format", func(t *testing.T) {
-		output, err := FormatArticleList(articles, "text", false)
-		if err != nil {
-			t.Errorf("FormatArticleList failed: %v", err)
-		}
-		if !strings.Contains(output, "Test Article") {
-			t.Error("Expected article title in output")
-		}
-	})
-
-	t.Run("markdown format", func(t *testing.T) {
-		output, err := FormatArticleList(articles, "markdown", false)
-		if err != nil {
-			t.Errorf("FormatArticleList failed: %v", err)
-		}
-		if !strings.Contains(output, "Articles List") {
-			t.Error("Expected articles list header")
-		}
-	})
-
-	t.Run("json format", func(t *testing.T) {
-		output, err := FormatArticleList(articles, "json", false)
-		if err != nil {
-			t.Errorf("FormatArticleList failed: %v", err)
-		}
-		if !strings.Contains(output, "Test Article") {
-			t.Error("Expected article title in JSON")
-		}
-	})
-
-	t.Run("include content", func(t *testing.T) {
-		output, err := FormatArticleList(articles, "text", true)
-		if err != nil {
-			t.Errorf("FormatArticleList failed: %v", err)
-		}
-		if !strings.Contains(output, "Article content here") {
-			t.Error("Expected content in output when includeContent=true")
-		}
-	})
 }
 
 func TestJSONIndentation(t *testing.T) {

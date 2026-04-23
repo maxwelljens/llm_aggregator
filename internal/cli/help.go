@@ -53,44 +53,6 @@ func getOptionValue(opt HelpOption) string {
 	return ""
 }
 
-func buildOptionLine(opt HelpOption, flagWidth int) string {
-	flagStr := renderFlag(opt.Short, opt.Name)
-	padding := max(flagWidth-lipgloss.Width(flagStr), 0)
-
-	var line strings.Builder
-
-	if shouldStyle() {
-		line.WriteString(flagStyle.Render(flagStr))
-		line.WriteString(strings.Repeat(" ", padding+2))
-	} else {
-		line.WriteString(flagStr)
-		line.WriteString(strings.Repeat(" ", padding+2))
-	}
-
-	value := getOptionValue(opt)
-	if value != "" {
-		if shouldStyle() {
-			line.WriteString(flagStyle.Render(value))
-			line.WriteString("  ")
-		} else {
-			line.WriteString(value)
-			line.WriteString("  ")
-		}
-	}
-
-	if opt.Required {
-		if shouldStyle() {
-			line.WriteString("[required] ")
-		} else {
-			line.WriteString("[required] ")
-		}
-	}
-
-	line.WriteString(opt.Description)
-
-	return line.String()
-}
-
 func maxFlagWidth(sections []HelpSection) int {
 	maxWidth := 0
 	for _, section := range sections {
@@ -140,18 +102,6 @@ func formatSection(section HelpSection, flagWidth int, _ int) string {
 	}
 
 	return b.String()
-}
-
-var descriptionStyle = lipgloss.NewStyle()
-
-func getTerminalWidth() int {
-	if termWidth := os.Getenv("COLUMNS"); termWidth != "" {
-		var width int
-		if _, err := fmt.Sscanf(termWidth, "%d", &width); err == nil && width > 0 {
-			return width
-		}
-	}
-	return 80
 }
 
 func BuildStyledHelp(args *Args) string {

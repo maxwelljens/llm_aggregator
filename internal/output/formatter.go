@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"llm_aggregator/internal/aggregator"
 )
 
 // Formatter formats output in different formats.
@@ -223,30 +221,4 @@ func centerText(text string, width int) string {
 	}
 	padding := (width - len(text)) / 2
 	return strings.Repeat(" ", padding) + text + strings.Repeat(" ", width-padding-len(text))
-}
-
-// FormatArticleList formats a list of articles.
-func FormatArticleList(articles []*aggregator.Article, formatType string, includeContent bool) (string, error) {
-	// Convert articles to maps
-	articleMaps := make([]map[string]any, len(articles))
-	for i, article := range articles {
-		articleMap := article.ToMap()
-		if !includeContent {
-			delete(articleMap, "content")
-		}
-		articleMaps[i] = articleMap
-	}
-
-	formatter, err := NewFormatter(formatType)
-	if err != nil {
-		return "", err
-	}
-
-	data := map[string]any{
-		"title":          fmt.Sprintf("Articles List - %d articles", len(articles)),
-		"articles":       articleMaps,
-		"articles_count": len(articles),
-	}
-
-	return formatter.FormatData(data)
 }

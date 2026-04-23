@@ -27,11 +27,6 @@ type FeedAggregator struct {
 	progressCtx        *progress.Context
 }
 
-// NewFeedAggregator creates a new FeedAggregator with the specified options.
-func NewFeedAggregator(maxArticlesPerFeed, maxDaysOld, maxContentLength int) *FeedAggregator {
-	return NewFeedAggregatorWithProgress(maxArticlesPerFeed, maxDaysOld, maxContentLength, nil)
-}
-
 // NewFeedAggregatorWithProgress creates a new FeedAggregator with progress context.
 func NewFeedAggregatorWithProgress(maxArticlesPerFeed, maxDaysOld, maxContentLength int, progressCtx *progress.Context) *FeedAggregator {
 	return &FeedAggregator{
@@ -79,6 +74,8 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 	var feedErrors []string
 
 	// Limit concurrency to avoid overwhelming servers
+	// NOTE: maxConcurrency is hardcoded to 10. Changing this requires a code
+	// modification.
 	const maxConcurrency = 10
 	sem := make(chan struct{}, maxConcurrency)
 
@@ -240,6 +237,9 @@ func (fa *FeedAggregator) parsePublishedDate(item *gofeed.Item) time.Time {
 
 func (fa *FeedAggregator) extractContent(item *gofeed.Item, link string) string {
 	// Priority: Content -> Description -> Fetch webpage
+	// NOTE: Webpage scraping is only attempted when content is empty or <100
+	// chars. This balances content quality against latency (webpage fetch adds
+	// ~1-2s per article).
 	content := ""
 
 	// Try to get content from item
