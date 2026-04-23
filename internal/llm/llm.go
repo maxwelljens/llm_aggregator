@@ -76,6 +76,12 @@ func (dc *LLMClient) SetLogger(logger *progress.Context) {
 	dc.logger = logger
 }
 
+// TokenUsage holds token usage information from the API
+type TokenUsage struct {
+	PromptTokens     int
+	CompletionTokens int
+}
+
 // SummariseArticles summarises a list of articles based on user prompt.
 // articles: List of article maps
 // userPrompt: User's query/summarisation request
@@ -84,9 +90,9 @@ func (dc *LLMClient) SummariseArticles(
 	articles []map[string]any,
 	userPrompt string,
 	systemPrompt string,
-) (string, error) {
+) (string, *TokenUsage, error) {
 	if len(articles) == 0 {
-		return "No articles to summarise.", nil
+		return "No articles to summarise.", nil, nil
 	}
 
 	// Prepare context from articles
@@ -174,7 +180,7 @@ If relevant, note any patterns, contradictions, or notable developments.`,
 	return messages
 }
 
-func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessageParamUnion) (string, error) {
+func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessageParamUnion) (string, *TokenUsage, error) {
 	ctx := context.Background()
 
 	if dc.logger != nil {
@@ -191,41 +197,42 @@ func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessage
 	})
 
 	if err != nil {
-		// Provide more specific error messages based on error type
 		errStr := err.Error()
 
-		// Log the full error for debugging
 		if dc.logger != nil {
 			dc.logger.Logf("API error: %s", errStr)
 		}
 
 		if strings.Contains(errStr, "401") {
-			return "", fmt.Errorf("invalid API key. Please check your LLM API key")
+			return "", nil, fmt.Errorf("invalid API key. Please check your LLM API key")
 		} else if strings.Contains(errStr, "429") {
-			return "", fmt.Errorf("rate limit exceeded. Please try again later")
+			return "", nil, fmt.Errorf("rate limit exceeded. Please try again later")
 		} else if strings.Contains(errStr, "500") {
-			return "", fmt.Errorf("LLM API server error. Please try again later")
+			return "", nil, fmt.Errorf("LLM API server error. Please try again later")
 		} else if strings.Contains(errStr, "404") {
-			return "", fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
+			return "", nil, fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
 		}
-		return "", fmt.Errorf("failed to connect to LLM API: %w", err)
+		return "", nil, fmt.Errorf("failed to connect to LLM API: %w", err)
 	}
 
-	// Extract text from response
 	if len(response.Choices) == 0 {
-		return "", fmt.Errorf("no response choices returned from API")
+		return "", nil, fmt.Errorf("no response choices returned from API")
 	}
 
 	outputText := response.Choices[0].Message.Content
 
-	// Print token usage
+	usage := &TokenUsage{
+		PromptTokens:     int(response.Usage.PromptTokens),
+		CompletionTokens: int(response.Usage.CompletionTokens),
+	}
+
 	if dc.logger != nil {
 		dc.logger.Logf(
 			"LLM API response: %d prompt tokens, %d completion tokens",
-			response.Usage.PromptTokens,
-			response.Usage.CompletionTokens,
+			usage.PromptTokens,
+			usage.CompletionTokens,
 		)
 	}
 
-	return outputText, nil
+	return outputText, usage, nil
 }

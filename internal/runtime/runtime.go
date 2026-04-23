@@ -92,6 +92,10 @@ func (r *Runtime) Execute(ctx context.Context) error {
 
 	r.Articles = processedArticles
 
+	// Estimate tokens for progress tracking
+	tokenEst := contentProc.EstimateTokenCount(processedArticles, r.Model)
+	r.Progress.SetTokenEstimate(tokenEst, tokenEst)
+
 	// Step 3: Initialise LLM client
 	r.Progress.SetStage("Connecting to LLM")
 	r.Progress.SetSubStage(fmt.Sprintf("Using model: %s", r.Model))
@@ -111,8 +115,9 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	// Step 4: Get summary from LLM
 	r.Progress.SetStage("Getting summary")
 	r.Progress.SetSubStage(fmt.Sprintf("Sending %d articles to LLM", len(processedArticles)))
+	r.Progress.StartWaiting()
 
-	summary, err := llm.SummariseArticles(
+	summary, usage, err := llm.SummariseArticles(
 		processedArticles,
 		r.Prompt,
 		r.SystemPrompt,
@@ -122,7 +127,9 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	}
 
 	r.Summary = summary
-	r.Progress.SetArticleCount(len(processedArticles), len(processedArticles))
+	if usage != nil {
+		r.Progress.SetTokenEstimate(tokenEst, tokenEst+usage.CompletionTokens)
+	}
 	return nil
 }
 

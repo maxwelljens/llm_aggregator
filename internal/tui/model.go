@@ -89,6 +89,12 @@ type ArticleCountMsg struct {
 	Total, Processed int
 }
 
+type TokenEstimateMsg struct {
+	Total, Used int
+}
+
+type WaitingMsg struct{}
+
 type processingDoneMsg struct {
 	err error
 }
@@ -112,6 +118,10 @@ type Model struct {
 	errorMsg        string
 	articlesCount   int
 	processedCount  int
+	tokenCount      int
+	tokenUsed       int
+	waiting         bool
+	waitingStart    time.Time
 	showSummary     bool
 	showThinking    bool   // Toggle state for thinking tags visibility
 	thinkingContent string // Extracted thinking content for toggle
@@ -252,7 +262,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.articlesCount = msg.Total
 		m.processedCount = msg.Processed
 
+	case TokenEstimateMsg:
+		m.tokenCount = msg.Total
+		m.tokenUsed = msg.Used
+
+	case WaitingMsg:
+		m.waiting = true
+		m.waitingStart = time.Now()
+
 	case processingDoneMsg:
+		m.waiting = false
 		if msg.err != nil {
 			m.errorMsg = msg.err.Error()
 			m.done = true // Also mark as done on error
@@ -314,8 +333,18 @@ func (m *Model) View() string {
 	var progressPercent float64
 	if m.done && m.errorMsg == "" {
 		progressPercent = 1.0
-	} else if m.articlesCount > 0 && m.currentStep >= 4 {
-		progressPercent = float64(m.processedCount) / float64(m.articlesCount)
+	} else if m.waiting {
+		// Fake progress: 85% base + up to 15% over 60 seconds
+		elapsed := time.Since(m.waitingStart).Seconds()
+		waitFraction := min(elapsed/60.0, 1.0)
+		progressPercent = 0.85 + (waitFraction * 0.15)
+	} else if m.tokenCount > 0 {
+		// Use token-based progress once articles are ready
+		// Tokens sent to LLM as a fraction of model's max token window (8k context assumed)
+		progressPercent = float64(m.tokenUsed) / float64(m.tokenCount)
+		if progressPercent > 1.0 {
+			progressPercent = 1.0
+		}
 	} else {
 		progressPercent = float64(m.currentStep) / float64(m.totalSteps)
 	}
@@ -354,6 +383,12 @@ func (m *Model) View() string {
 	}
 	if m.processedCount > 0 {
 		sb.WriteString(infoStyle.Render(fmt.Sprintf("Processed: %d", m.processedCount)))
+		sb.WriteString("  ")
+	}
+	if m.tokenCount > 0 {
+		sb.WriteString(infoStyle.Render(fmt.Sprintf("Tokens: %d / %d", m.tokenUsed, m.tokenCount)))
+		sb.WriteString("\n")
+	} else {
 		sb.WriteString("\n")
 	}
 

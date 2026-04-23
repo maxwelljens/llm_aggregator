@@ -36,6 +36,16 @@ func (tp *TUIProgress) SetArticleCount(total, processed int) {
 	tp.program.Send(ArticleCountMsg{Total: total, Processed: processed})
 }
 
+// SetTokenEstimate sends a message to update the token estimates.
+func (tp *TUIProgress) SetTokenEstimate(total, used int) {
+	tp.program.Send(TokenEstimateMsg{Total: total, Used: used})
+}
+
+// StartWaiting signals that we're waiting for the LLM response.
+func (tp *TUIProgress) StartWaiting() {
+	tp.program.Send(WaitingMsg{})
+}
+
 // Logf sends a generic log message (can be displayed as a sub-status).
 func (tp *TUIProgress) Logf(format string, args ...any) {
 	tp.program.Send(SubStageMsg(fmt.Sprintf(format, args...)))

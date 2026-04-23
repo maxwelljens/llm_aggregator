@@ -115,6 +115,8 @@ llm_aggregator --help
    format (plain text, GitHub‑flavoured markdown, or JSON). If JSON output is
    selected, the original articles can be included alongside the summary.
 
+![LLM Aggregator action in GIF](./assets/demo.gif)
+
 When the `--tui` flag is used, the entire process is wrapped in a `bubbletea`
 TUI that shows a colourful progress bar, live article counters, and elapsed
 time. The TUI renders Markdown content from the LLM with proper styling for

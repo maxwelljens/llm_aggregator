@@ -6,6 +6,12 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-04-23
+
+- Progress bar now tracks estimated token count (via tiktoken) before sending
+  to LLM, then updates with actual completion tokens from the API response.
+  Gives a more accurate picture of how much content is being sent.
+
 ## [0.10.0] - 2026-04-23
 
 ### Added

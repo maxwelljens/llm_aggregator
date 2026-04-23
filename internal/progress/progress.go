@@ -20,6 +20,8 @@ type Progress interface {
 	SetStage(stage string)
 	SetSubStage(status string)
 	SetArticleCount(total, processed int)
+	SetTokenEstimate(total, used int)
+	StartWaiting()
 }
 
 // SimpleLogger implements Logger with io.Writer output
@@ -52,9 +54,11 @@ func (sl *SimpleLogger) Debugf(format string, args ...any) {
 	}
 }
 
-func (sl *SimpleLogger) SetStage(stage string)                {}
-func (sl *SimpleLogger) SetSubStage(stage string)             {}
-func (sl *SimpleLogger) SetArticleCount(total, processed int) {}
+func (sl *SimpleLogger) SetStage(stage string)                      {}
+func (sl *SimpleLogger) SetSubStage(stage string)                   {}
+func (sl *SimpleLogger) SetArticleCount(total, processed int)       {}
+func (sl *SimpleLogger) SetTokenEstimate(total, used int)           {}
+func (sl *SimpleLogger) StartWaiting()                            {}
 
 // NoopLogger implements Logger with no output
 type NoopLogger struct{}
@@ -62,9 +66,11 @@ type NoopLogger struct{}
 func (nl *NoopLogger) Logf(format string, args ...any)      {}
 func (nl *NoopLogger) Warningf(format string, args ...any)  {}
 func (nl *NoopLogger) Debugf(format string, args ...any)    {}
-func (nl *NoopLogger) SetStage(stage string)                {}
-func (nl *NoopLogger) SetSubStage(status string)            {}
-func (nl *NoopLogger) SetArticleCount(total, processed int) {}
+func (nl *NoopLogger) SetStage(stage string)                      {}
+func (nl *NoopLogger) SetSubStage(status string)                  {}
+func (nl *NoopLogger) SetArticleCount(total, processed int)        {}
+func (nl *NoopLogger) SetTokenEstimate(total, used int)           {}
+func (nl *NoopLogger) StartWaiting()                            {}
 
 // Context provides progress context for components
 type Context struct {
