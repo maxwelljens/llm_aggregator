@@ -6,6 +6,24 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-04-23
+
+### Added
+
+- **Markdown rendering in TUI**: Implemented `charmbracelet/glamour` to
+  render LLM summary output with proper markdown styling. Headers, bold,
+  italic, code blocks, lists, and other markdown elements are now styled
+  for better readability in the terminal.
+- **Formalised infobar keybinds**: TUI keybinds are now defined as
+  dedicated style variables at the top of the model for easier maintenance.
+  Keybinds are bold while separators and action text are subtle but
+  distinguishable.
+- **Thinking indicator as separate element**: The `[💭 Thinking: ON/OFF]`
+  toggle indicator is now on its own line above the keybinds, using a
+  distinct style (magenta+bold when ON, subtle+italic when OFF).
+- **Dynamic text wrapping on resize**: TUI summary text now re-wraps when
+  the terminal window size or font changes, with proper markdown re-rendering.
+
 ## [0.8.0] - 2026-04-23
 
 ### Added

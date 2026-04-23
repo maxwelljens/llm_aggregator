@@ -117,8 +117,10 @@ llm_aggregator --help
 
 When the `--tui` flag is used, the entire process is wrapped in a `bubbletea`
 TUI that shows a colourful progress bar, live article counters, and elapsed
-time. The TUI supports keyboard navigation (j/k, arrows, space, b, g/G) and
-mouse wheel scrolling for browsing long summaries.
+time. The TUI renders Markdown content from the LLM with proper styling for
+headers, bold, italic, code blocks, and lists. The TUI supports keyboard
+navigation (j/k, arrows, space, b, g/G) and mouse wheel scrolling for
+browsing long summaries.
 
 Feeds are fetched concurrently for optimal performance, with rate limiting to
 avoid overwhelming feed servers.
@@ -212,6 +214,7 @@ Then run:
 | [`openai‑go`](https://github.com/openai/openai-go) | Official OpenAI API library for Go |
 | [`bubbletea`](https://github.com/charmbracelet/bubbletea) | TUI framework for terminal applications |
 | [`lipgloss`](https://github.com/charmbracelet/lipgloss) | Library for styling terminal output |
+| [`glamour`](https://github.com/charmbracelet/glamour) | Markdown rendering for terminal (used in TUI mode) |
 | [`go‑arg`](https://github.com/alexflint/go-arg) | Struct‑based argument parsing |
 | [`tiktoken-go`](https://github.com/pkoukk/tiktoken-go) | OpenAI's tiktoken BPE tokeniser |
 | [`viper`](https://github.com/spf13/viper) | Configuration management |

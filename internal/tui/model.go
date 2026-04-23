@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/glamour/v2"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -58,6 +59,28 @@ var (
 		"Formatting output",
 		"Complete",
 	}
+
+	// Infobar keybinds - stylised for easy modification
+	infobarKeybindStyle = lipgloss.NewStyle().
+		Foreground(colorSubtle).
+		Bold(true)
+
+	infobarSeparatorStyle = lipgloss.NewStyle().
+		Foreground(colorSubtle).
+		Italic(false)
+
+	infobarActionStyle = lipgloss.NewStyle().
+		Foreground(colorSubtle).
+		Italic(true)
+
+	// Thinking toggle indicator (separate element above keybinds)
+	thinkingOnStyle = lipgloss.NewStyle().
+		Foreground(colorHighlight).
+		Bold(true)
+
+	thinkingOffStyle = lipgloss.NewStyle().
+		Foreground(colorSubtle).
+		Italic(true)
 )
 
 type StageMsg string
@@ -183,6 +206,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.showSummary {
 			m.viewport.Width = msg.Width - padding*2
 			m.viewport.Height = msg.Height - 10 // Leave space for header/footer
+			// Re-wrap content to new width when resizing
+			contentWidth := m.viewport.Width
+			var summaryContent string
+			if m.showThinking && m.thinkingContent != "" {
+				thinkingText := stripThinkingTags(m.thinkingContent)
+				summaryContent = wrapTextGray("💭 Thinking\n\n"+thinkingText, contentWidth) + "\n\n📝 Summary\n\n" + wrapText(m.cleanSummary, contentWidth)
+			} else {
+				summaryContent = "📝 Summary\n\n" + wrapText(m.cleanSummary, contentWidth)
+			}
+			m.viewport.SetContent(summaryContent)
 		}
 	case progressMsg:
 		// This message type seems unused, but leaving it in case.
@@ -423,25 +456,62 @@ func (m *Model) viewSummary() string {
 	sb.WriteString(m.viewport.View())
 	sb.WriteString("\n")
 
-	// Navigation help
-	var toggleIndicator string
+	// Thinking toggle indicator (separate element above keybinds)
 	if m.thinkingContent != "" {
 		if m.showThinking {
-			toggleIndicator = infoStyle.Render(" [💭 Thinking: ON]")
+			sb.WriteString(thinkingOnStyle.Render("[💭 Thinking: ON]"))
 		} else {
-			toggleIndicator = infoStyle.Render(" [💭 Thinking: OFF]")
+			sb.WriteString(thinkingOffStyle.Render("[💭 Thinking: OFF]"))
 		}
+		sb.WriteString("\n")
 	}
-	sb.WriteString(infoStyle.Render("Navigate: ↑/↓ or j/k (scroll) | Space/B (page) | g/G (start/end) | t (toggle thinking) | q (quit)"))
-	sb.WriteString(toggleIndicator)
+
+	// Infobar - stylised keybinds
+	sb.WriteString(infobarKeybindStyle.Render("↑/↓"))
+	sb.WriteString(infobarSeparatorStyle.Render(" or "))
+	sb.WriteString(infobarKeybindStyle.Render("j/k"))
+	sb.WriteString(infobarActionStyle.Render(" (scroll)"))
+	sb.WriteString(infobarSeparatorStyle.Render(" | "))
+	sb.WriteString(infobarKeybindStyle.Render("Space/B"))
+	sb.WriteString(infobarActionStyle.Render(" (page)"))
+	sb.WriteString(infobarSeparatorStyle.Render(" | "))
+	sb.WriteString(infobarKeybindStyle.Render("g/G"))
+	sb.WriteString(infobarActionStyle.Render(" (start/end)"))
+	sb.WriteString(infobarSeparatorStyle.Render(" | "))
+	sb.WriteString(infobarKeybindStyle.Render("t"))
+	sb.WriteString(infobarActionStyle.Render(" (toggle thinking)"))
+	sb.WriteString(infobarSeparatorStyle.Render(" | "))
+	sb.WriteString(infobarKeybindStyle.Render("q"))
+	sb.WriteString(infobarActionStyle.Render(" (quit)"))
 
 	return sb.String()
 }
 
 // wrapText wraps text to a given width using lipgloss.
 func wrapText(text string, width int) string {
-	style := lipgloss.NewStyle().Width(width)
-	return style.Render(text)
+	// Use glamour to render markdown with proper styling
+	r := getGlamourRenderer(width)
+	out, err := r.Render(text)
+	if err != nil {
+		// Fallback to plain text wrapping if glamour fails
+		style := lipgloss.NewStyle().Width(width)
+		return style.Render(text)
+	}
+	return out
+}
+
+// getGlamourRenderer returns a cached glamour renderer configured for the given width.
+func getGlamourRenderer(width int) *glamour.TermRenderer {
+	// Create a new renderer with the specified width
+	r, err := glamour.NewTermRenderer(
+		glamour.WithWordWrap(width),
+		glamour.WithStandardStyle("dark"),
+	)
+	if err != nil {
+		// Fallback to default renderer if creation fails
+		r, _ = glamour.NewTermRenderer(glamour.WithWordWrap(width))
+	}
+	return r
 }
 
 // wrapTextGray wraps text to a given width using lipgloss with gray colour.

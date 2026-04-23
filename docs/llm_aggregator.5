@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator configuration file
-.TH LLM_AGGREGATOR 5 "22 April 2026" "1.0.0" "File Formats"
+.TH LLM_AGGREGATOR 5 "23 April 2026" "0.9.0" "File Formats"
 .SH NAME
 llm_aggregator.conf \- configuration file for llm_aggregator
 .SH DESCRIPTION
@@ -23,6 +23,13 @@ The configuration file is a TOML file with the following sections and
 options:
 .SH "[feed_aggregation]"
 Options controlling how feeds are fetched and processed.
+.TP
+.B feeds_file = \fI"string"\fR
+Path to a file containing RSS feed URLs, one per line. This is the input
+file that specifies which feeds to aggregate.
+.br
+Note: This is a required command\-line argument and cannot be set via
+environment variable or config file.
 .TP
 .B max_articles_per_feed = \fIinteger\fR
 Maximum number of articles to fetch from each feed.
@@ -93,6 +100,13 @@ Default: 0.7
 .SH "[system]"
 Options related to the LLM system prompt.
 .TP
+.B prompt = \fI"string"\fR
+User prompt for summarisation/analysis. This is a required argument that
+instructs the LLM on what to do with the aggregated feed content.
+.br
+Note: This is a required command\-line argument and cannot be set via
+environment variable or config file.
+.TP
 .B system_prompt = \fI"string"\fR
 Custom system prompt for the LLM. The system prompt instructs the AI on
 how to behave and what format to use in its responses.
@@ -130,6 +144,32 @@ Include the original articles in JSON output. Only applicable when
 is set to "json".
 .br
 Default: false
+.SH "[runtime]"
+Options controlling runtime behaviour and output modes.
+.TP
+.B tui = \fIboolean\fR
+Enable the terminal user interface (TUI) mode with a colourful progress
+bar, live article counters, elapsed time, and a scrollable summary view.
+When enabled, the program runs interactively with keyboard navigation
+support (j/k, arrows, space, b, g/G for scrolling and q/Ctrl+C to quit).
+Markdown content from the LLM is rendered with proper styling.
+.br
+Default: false
+.TP
+.B verbose = \fIboolean\fR
+Enable verbose output mode. Shows detailed progress information including
+feed fetching status, article filtering details, token usage estimates,
+and LLM API interaction progress.
+.br
+Default: false
+.TP
+.B dry_run = \fIboolean\fR
+Validate configuration and preview what would happen without making any
+LLM API calls. Useful for validating the feeds file and configuration,
+checking article counts and filtering results, and anything else that can
+be done "offline".
+.br
+Default: false
 .SH EXAMPLE CONFIGURATION
 Below is a complete example configuration file:
 .PP
@@ -163,6 +203,11 @@ Focus on key points, trends, and important information."""
 output = "text"  # Options: text, json, markdown
 # output_file = ""  # Optional output file path
 include_articles = false
+
+# Runtime options
+# tui = false  # Enable TUI mode (default: false)
+# verbose = false  # Enable verbose output (default: false)
+# dry_run = false  # Validate config without API calls (default: false)
 .fi
 .RE
 .PP
@@ -195,6 +240,11 @@ and practical applications."""
 # Output options
 output = "markdown"
 include_articles = true
+
+# Runtime options
+tui = true  # Enable TUI mode
+verbose = true  # Show progress details
+dry_run = false  # Perform actual LLM API call
 .fi
 .RE
 .SH CONFIGURATION PRECEDENCE
@@ -260,6 +310,12 @@ Output file path.
 .TP
 .B LLM_AGGREGATOR_INCLUDE_ARTICLES
 Include articles in JSON output (true/false).
+.TP
+.B LLM_AGGREGATOR_DRY_RUN
+Validate configuration without making LLM API calls (true/false).
+.TP
+.B LLM_AGGREGATOR_TUI
+Enable TUI mode (true/false).
 .SH SECURITY CONSIDERATIONS
 .TP 2
 \(bu
