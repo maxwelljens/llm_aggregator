@@ -301,15 +301,21 @@ Current coverage status:
 
 | Package | Coverage | Notes |
 |---------|----------|-------|
-| `cli` | High | All argument types tested |
-| `config` | High | All config operations tested |
-| `defaults` | High | All defaults tested |
-| `aggregator` | Medium | Network calls require mocks |
-| `output` | High | All formatters tested |
-| `processor` | High | All filtering/sorting tested |
-| `llm` | Low | Requires API mocking |
-| `runtime` | Low | Integration tests only |
-| `tui` | None | Requires terminal interaction |
+| `cli` | 95% | All argument types and help formatting tested |
+| `config` | 82% | Most config operations tested |
+| `aggregator` | 33% | Network calls require advanced mocks |
+| `output` | 93% | All formatters tested |
+| `processor` | 76% | All filtering/sorting tested |
+| `llm` | 0% | Requires advanced API mocking |
+| `runtime` | 0% | Integration tests only |
+| `tui` | 0% | Requires terminal interaction |
+| `progress` | 0% | Interface only |
+| `tokeniser` | 0% | Depends on library internals |
+| `cmd` | 0% | Entry point |
+
+> [!NOTE]
+> `defaults` and `style` have no testable statements; they contain only
+> constant declarations or subjective parameters.
 
 ---
 
