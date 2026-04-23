@@ -15,36 +15,36 @@ var (
 
 // Args represents command-line arguments.
 type Args struct {
-	FeedsFile string `arg:"--feeds-file,required" help:"Path to file containing RSS feed URLs (one per line)"`
-	Prompt    string `arg:"--prompt,required" help:"User prompt for summarisation/analysis"`
+	FeedsFile string `arg:"-f,--feeds-file,required" help:"Path to file containing RSS feed URLs (one per line)"`
+	Prompt    string `arg:"-p,--prompt,required" help:"User prompt for summarisation/analysis"`
 
 	// Feed aggregation options
-	MaxArticlesPerFeed *int `arg:"--max-articles-per-feed" help:"Maximum articles to fetch from each feed"`
-	MaxDaysOld         *int `arg:"--max-days-old" help:"Only include articles from the last N days"`
+	MaxArticlesPerFeed *int `arg:"-n,--max-articles-per-feed" help:"Maximum articles to fetch from each feed"`
+	MaxDaysOld         *int `arg:"-d,--max-days-old" help:"Only include articles from the last N days"`
 	MaxTotalArticles   *int `arg:"--max-total-articles" help:"Maximum total articles to process"`
 
 	// Content filtering
-	IncludeKeywords string `arg:"--include-keywords" help:"Comma-separated list of keywords to include (case-insensitive)"`
-	ExcludeKeywords string `arg:"--exclude-keywords" help:"Comma-separated list of keywords to exclude (case-insensitive)"`
+	IncludeKeywords string `arg:"-i,--include-keywords" help:"Comma-separated list of keywords to include (case-insensitive)"`
+	ExcludeKeywords string `arg:"-e,--exclude-keywords" help:"Comma-separated list of keywords to exclude (case-insensitive)"`
 
 	// LLM API options
 	APIKey      *string  `arg:"--api-key" help:"OpenAI-compatible API key (default: read from LLM_AGGREGATOR_API_KEY env var)"`
 	BaseURL     *string  `arg:"--base-url" help:"API base URL"`
-	Model       *string  `arg:"--model" help:"LLM model to use"`
+	Model       *string  `arg:"-m,--model" help:"LLM model to use"`
 	MaxTokens   *int     `arg:"--max-tokens" help:"Maximum tokens in response"`
 	Temperature *float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)"`
 
 	// Output options
-	Output          string `arg:"--output" help:"Output format" choice:"text,json,markdown"`
+	Output          string `arg:"-o,--output" help:"Output format" choice:"text,json,markdown"`
 	OutputFile      string `arg:"--output-file" help:"Write output to file (default: stdout)"`
 	IncludeArticles bool   `arg:"--include-articles" help:"Include original articles in JSON output"`
 
 	// System options
 	SystemPrompt string `arg:"--system-prompt" help:"Custom system prompt for LLM"`
-	TUI          bool   `arg:"--tui" help:"Enable TUI interface with progress bar"`
+	TUI          bool   `arg:"-t,--tui" help:"Enable TUI interface with progress bar"`
 	Verbose      bool   `arg:"-v,--verbose" help:"Show verbose output"`
 	ShowVersion  bool   `arg:"--version" help:"Show version"`
-	DryRun       bool   `arg:"--dry-run" help:"Validate config, show article statistics, and exit without making LLM API calls"`
+	DryRun       bool   `arg:"-D,--dry-run" help:"Validate config, show article statistics, and exit without making LLM API calls"`
 }
 
 // Version returns the version string.
@@ -54,26 +54,7 @@ func (Args) Version() string {
 
 // Description returns the program description.
 func (Args) Description() string {
-	return `LLM Aggregator - Aggregate RSS feeds and summarise with LLM API
-
-Examples:
-  # Basic usage with prompts
-  llm_aggregator --feeds-file feeds.txt --prompt "What are the latest trends in free software?"
-  
-  # Validate configuration and preview articles (no LLM API calls)
-  llm_aggregator --feeds-file feeds.txt --prompt "Summarise news" --dry-run
-  
-  # With custom LLM model
-  llm_aggregator --feeds-file feeds.txt --prompt "Summarise tech news" --model deepseek-coder
-  
-  # Output to JSON file
-  llm_aggregator --feeds-file feeds.txt --prompt "Analyse AI developments" --output json --output-file analysis.json
-  
-  # Filter by keywords
-  llm_aggregator --feeds-file feeds.txt --prompt "Linux news" --include-keywords linux,opensource
-
-Environment Variables:
-  LLM_AGGREGATOR_API_KEY: Your LLM API key (required if not provided via --api-key)`
+	return "LLM Aggregator - Aggregate RSS feeds and summarise with LLM API"
 }
 
 // ParseKeywords parses comma-separated keywords string into list.
@@ -104,7 +85,7 @@ func ParseArgs() (*Args, error) {
 	// Handle help and version flags before checking required fields
 	if len(os.Args) > 1 {
 		if os.Args[1] == "-h" || os.Args[1] == "--help" {
-			parser.WriteHelp(os.Stdout)
+			WriteHelp(&args, os.Stdout)
 			os.Exit(0)
 		}
 		if os.Args[1] == "--version" {

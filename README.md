@@ -30,28 +30,28 @@ the LLM. The resulting output is printed to the terminal in your chosen format
 
 ### Basic Options
 
-    --feeds-file FILE         Path to file containing RSS feed URLs (one per line)
-    --prompt PROMPT           User prompt for summarisation/analysis
-    --api-key KEY             API key (default: read from $LLM_AGGREGATOR_API_KEY)
-    --model MODEL             Model to use (default: deepseek-chat)
-    --dry-run                 Validate config, show article statistics, and exit without making LLM API calls.
-    --base-url URL            API base URL (default: https://api.deepseek.com)
-    --max-tokens N            Maximum tokens in response (default: 4000)
-    --output FORMAT           Output format: text, markdown, or json (default: text)
-    --output-file FILE        Write output to FILE instead of stdout
-    --tui                     Enable TUI interface with progress bar
-    --verbose, -v             Enable verbose logging
-    --help, -h                Show this help message and exit
-    --version                 Show version information and exit
+    -f, --feeds-file FILE    Path to file containing RSS feed URLs (one per line)  [required]
+    -p, --prompt PROMPT      User prompt for summarisation/analysis                 [required]
+    --api-key KEY            API key (default: read from $LLM_AGGREGATOR_API_KEY)
+    -m, --model MODEL        Model to use (default: deepseek-chat)
+    --base-url URL           API base URL (default: https://api.deepseek.com)
+    --max-tokens N           Maximum tokens in response (default: 4000)
+    -o, --output FORMAT      Output format: text, markdown, or json (default: text)
+    --output-file FILE       Write output to FILE instead of STDOUT
+    -t, --tui                Enable TUI interface with progress bar
+    -D, --dry-run            Validate config, show article statistics, and exit without making LLM API calls
+    -v, --verbose            Enable verbose logging
+    -h, --help               Show this help message and exit
+    --version                Show version information and exit
 
 ### Filtering & Processing
 
-    --max-articles-per-feed N Maximum articles to fetch from each feed (default: 10)
-    --max-days-old N          Only include articles from the last N days (0 for all) (default: 7)
-    --max-total-articles N    Maximum total articles to process (default: 20)
-    --include-keywords LIST   Comma-separated list of keywords to include (case‑insensitive)
-    --exclude-keywords LIST   Comma-separated list of keywords to exclude (case‑insensitive)
-    --include-articles        Include original articles in JSON output
+    -n, --max-articles-per-feed N  Maximum articles to fetch from each feed (default: 10)
+    -d, --max-days-old N           Only include articles from the last N days (0 for all) (default: 7)
+    --max-total-articles N         Maximum total articles to process (default: 20)
+    -i, --include-keywords LIST    Comma-separated list of keywords to include (case‑insensitive)
+    -e, --exclude-keywords LIST    Comma-separated list of keywords to exclude (case‑insensitive)
+    --include-articles             Include original articles in JSON output
 
 ### LLM Configuration
 
@@ -62,27 +62,27 @@ the LLM. The resulting output is printed to the terminal in your chosen format
 
 ```bash
 # Basic usage: summarise tech news from a list of feeds
-llm_aggregator --feeds-file feeds.txt \
---prompt "What are the latest AI-related trends in free software?"
+llm_aggregator -f feeds.txt -p "What are the latest AI-related trends in free software?"
 
 # With TUI progress bar
-llm_aggregator --feeds-file feeds.txt --prompt "Summarise tech news" --tui
+llm_aggregator -f feeds.txt -p "Summarise tech news" -t
 
 # Output to a JSON file with included articles
-llm_aggregator --feeds-file feeds.txt --prompt "Analyse AI developments" \
-    --output json --output-file analysis.json --include-articles
+llm_aggregator -f feeds.txt -p "Analyse AI developments" \
+    -o json --output-file analysis.json --include-articles
+
 
 # Filter by keywords (only include articles about Linux or open source)
-llm_aggregator --feeds-file feeds.txt --prompt "Linux news" \
-    --include-keywords linux,opensource --max-days-old 3
+llm_aggregator -f feeds.txt -p "Linux news" \
+    -i linux,opensource -d 3
 
 # Use a custom model and higher token limit
-llm_aggregator --feeds-file feeds.txt --prompt "Code analysis" \
-    --model deepseek-reasoner --max-tokens 8000
+llm_aggregator -f feeds.txt -p "Code analysis" \
+    -m deepseek-reasoner --max-tokens 8000
 
 # Use a custom API endpoint (e.g., local Ollama)
-llm_aggregator --feeds-file feeds.txt --prompt "Summarise news" \
-    --base-url "http://localhost:11434/v1" --model llama3
+llm_aggregator -f feeds.txt -p "Summarise news" \
+    --base-url "http://localhost:11434/v1" -m llama3
 
 # Show version information
 llm_aggregator --version
@@ -202,7 +202,7 @@ For example:
 
 Then run:
 
-    llm_aggregator --feeds-file feeds.txt --prompt "Summarise the top tech stories"
+    llm_aggregator -f feeds.txt -p "Summarise the top tech stories"
 
 ## Dependencies
 

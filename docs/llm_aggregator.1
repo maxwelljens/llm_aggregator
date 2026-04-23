@@ -5,9 +5,9 @@ llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
 .SH SYNOPSIS
 .B llm_aggregator
 [\fIOPTIONS\fR]
-.B \-\-feeds-file
+.B \-f
 \fIFILE\fR
-.B \-\-prompt
+.B \-p
 \fIPROMPT\fR
 .SH DESCRIPTION
 .B llm_aggregator
@@ -49,21 +49,21 @@ Feeds are fetched concurrently for optimal performance, with rate limiting
 to avoid overwhelming feed servers.
 .SH REQUIRED ARGUMENTS
 .TP
-.B \-\-feeds-file \fIFILE\fR
+.B \-f\fR,\fB -f \fIFILE\fR
 Path to a file containing RSS feed URLs, one per line.
 .TP
-.B \-\-prompt \fIPROMPT\fR
+.B \-p\fR,\fB -p \fIPROMPT\fR
 User prompt for summarisation or analysis. This is sent to the LLM along
 with the article content.
 .SH OPTIONS
 .SS Feed Aggregation Options
 .TP
-.B \-\-max\-articles\-per\-feed \fIN\fR
+.B \-n\fR,\fB \-\-max\-articles\-per\-feed \fIN\fR
 Maximum number of articles to fetch from each feed.
 .br
 Default: 10
 .TP
-.B \-\-max\-days\-old \fIN\fR
+.B \-d\fR,\fB \-\-max\-days\-old \fIN\fR
 Only include articles from the last N days. Set to 0 to include all articles
 regardless of age.
 .br
@@ -75,11 +75,11 @@ Maximum total number of articles to process across all feeds.
 Default: 20
 .SS Content Filtering
 .TP
-.B \-\-include\-keywords \fILIST\fR
+.B \-i\fR,\fB \-\-include\-keywords \fILIST\fR
 Comma\-separated list of keywords to include. Only articles containing at
 least one of these keywords (case\-insensitive) will be processed.
 .TP
-.B \-\-exclude\-keywords \fILIST\fR
+.B \-e\fR,\fB \-\-exclude\-keywords \fILIST\fR
 Comma\-separated list of keywords to exclude. Any article containing one of
 these keywords (case\-insensitive) will be filtered out.
 .SS LLM API Options
@@ -94,7 +94,7 @@ API base URL for the LLM service.
 .br
 Default: https://api.deepseek.com
 .TP
-.B \-\-model \fIMODEL\fR
+.B \-m\fR,\fB -m \fIMODEL\fR
 LLM model to use for summarisation.
 .br
 Default: deepseek-chat
@@ -114,7 +114,7 @@ Default: 0.7
 Custom system prompt for the LLM. If not specified, a default prompt is used.
 .SS Output Options
 .TP
-.B \-\-output \fIFORMAT\fR
+.B \-o\fR,\fB -o \fIFORMAT\fR
 Output format. Must be one of:
 .RS 12
 .TP 4
@@ -128,16 +128,16 @@ GitHub\-flavoured markdown output
 JSON output with structured data
 .RE
 .TP
-.B \-\-output\-file \fIFILE\fR
+.B -o\-file \fIFILE\fR
 Write output to FILE instead of stdout.
 .TP
 .B \-\-include\-articles
 Include the original articles in JSON output. Only applicable when
-.B \-\-output json
+.B -o json
 is used.
 .SS Interface Options
 .TP
-.B \-\-dry\-run
+.B \-D\fR,\fB \-\-dry\-run
 Validate configuration and preview what would happen without making any LLM
 API calls. Useful for:
 .RS 4
@@ -155,7 +155,7 @@ Estimating token usage before running
 Testing network connectivity to feeds
 .RE
 .TP
-.B \-\-tui
+.B \-t\fR,\fB -t
 Enable the TUI interface with a progress bar, live article counters, and
 elapsed time display. The TUI supports keyboard navigation (j/k, arrows,
 space, b, g/G) and mouse wheel scrolling.
@@ -248,8 +248,8 @@ Summarise tech news from a list of feeds:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \\
-    \-\-prompt "What are the latest AI\-related trends in free software?"
+llm_aggregator -f feeds.txt \\
+    -p "What are the latest AI\-related trends in free software?"
 .fi
 .RE
 .SS Validating Configuration (Dry Run)
@@ -258,7 +258,7 @@ Validate configuration and preview articles before making any LLM API calls:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Summarise news" \-\-dry-run
+llm_aggregator -f feeds.txt -p "Summarise news" -D
 .fi
 .RE
 .PP
@@ -270,7 +270,7 @@ Enable the TUI interface with a progress bar:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Summarise tech news" \-\-tui
+llm_aggregator -f feeds.txt -p "Summarise tech news" -t
 .fi
 .RE
 .SS JSON Output with Articles
@@ -279,8 +279,8 @@ Output to a JSON file with original articles included:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Analyse AI developments" \\
-    \-\-output json \-\-output-file analysis.json \-\-include\-articles
+llm_aggregator -f feeds.txt -p "Analyse AI developments" \\
+    -o json -o-file analysis.json \-\-include\-articles
 .fi
 .RE
 .SS Filtering by Keywords
@@ -289,7 +289,7 @@ Only include articles about Linux or open source:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Linux news" \\
+llm_aggregator -f feeds.txt -p "Linux news" \\
     \-\-include\-keywords linux,opensource \-\-max\-days\-old 3
 .fi
 .RE
@@ -299,11 +299,11 @@ Use a custom model with a higher token limit or local endpoint:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Code analysis" \\
-    \-\-model deepseek-reasoner \-\-max-tokens 8000
+llm_aggregator -f feeds.txt -p "Code analysis" \\
+    -m deepseek-reasoner \-\-max-tokens 8000
 
-llm_aggregator \-\-feeds-file feeds.txt \-\-prompt "Summarise news" \\
-    \-\-base-url "http://localhost:11434/v1" \-\-model llama3
+llm_aggregator -f feeds.txt -p "Summarise news" \\
+    \-\-base-url "http://localhost:11434/v1" -m llama3
 .fi
 .RE
 .SS Custom System Prompt
@@ -312,8 +312,8 @@ Provide a custom system prompt for different analysis styles:
 .PP
 .RS 4
 .nf
-llm_aggregator \-\-feeds-file feeds.txt \\
-    \-\-prompt "Identify security vulnerabilities" \\
+llm_aggregator -f feeds.txt \\
+    -p "Identify security vulnerabilities" \\
     \-\-system-prompt "You are a security expert. Focus on identifying \\
 potential vulnerabilities, data breaches, and security advisories."
 .fi

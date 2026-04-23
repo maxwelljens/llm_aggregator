@@ -27,4 +27,6 @@ go.work.sum
 .env
 
 # Honk
+AGENTS.md
 .goosehints
+.crush
