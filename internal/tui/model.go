@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +14,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"llm_aggregator/internal/runtime"
 )
+
+// Regex pattern to match thinking tags (both <think> and </think>)
+var thinkingTagRegex = regexp.MustCompile(`(?s)<think>.*?</think>`)
 
 const (
 	padding  = 2
@@ -69,23 +73,26 @@ type processingDoneMsg struct {
 type progressMsg float64
 
 type Model struct {
-	progress       progress.Model
-	spinner        spinner.Model
-	viewport       viewport.Model
-	runtime        *runtime.Runtime
-	currentStep    int
-	totalSteps     int
-	status         string
-	subStatus      string
-	startTime      time.Time
-	elapsed        time.Duration
-	width          int
-	height         int
-	done           bool
-	errorMsg       string
-	articlesCount  int
-	processedCount int
-	showSummary    bool
+	progress        progress.Model
+	spinner         spinner.Model
+	viewport        viewport.Model
+	runtime         *runtime.Runtime
+	currentStep     int
+	totalSteps      int
+	status          string
+	subStatus       string
+	startTime       time.Time
+	elapsed         time.Duration
+	width           int
+	height          int
+	done            bool
+	errorMsg        string
+	articlesCount   int
+	processedCount  int
+	showSummary     bool
+	showThinking    bool   // Toggle state for thinking tags visibility
+	thinkingContent string // Extracted thinking content for toggle
+	cleanSummary    string // Summary with thinking tags removed
 }
 
 func New(rt *runtime.Runtime) *Model {
@@ -100,15 +107,16 @@ func New(rt *runtime.Runtime) *Model {
 	sp.Style = lipgloss.NewStyle().Foreground(colorHighlight)
 
 	return &Model{
-		progress:    prog,
-		spinner:     sp,
-		runtime:     rt,
-		currentStep: 0,
-		totalSteps:  len(stepNames) - 1, // Last step is "Complete"
-		status:      "Initialising...",
-		subStatus:   "Loading configuration",
-		startTime:   time.Now(),
-		showSummary: false,
+		progress:     prog,
+		spinner:      sp,
+		runtime:      rt,
+		currentStep:  0,
+		totalSteps:   len(stepNames) - 1, // Last step is "Complete"
+		status:       "Initialising...",
+		subStatus:    "Loading configuration",
+		startTime:    time.Now(),
+		showSummary:  false,
+		showThinking: false, // Default: thinking tags are hidden
 	}
 }
 
@@ -147,6 +155,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "t":
+			// Toggle thinking tags visibility
+			if m.thinkingContent != "" {
+				m.showThinking = !m.showThinking
+				contentWidth := m.viewport.Width
+				var summaryContent string
+				if m.showThinking {
+					// Show thinking at the head of the output (without XML tags)
+					thinkingText := stripThinkingTags(m.thinkingContent)
+					summaryContent = wrapTextGray("💭 Thinking\n\n"+thinkingText, contentWidth) + "\n\n📝 Summary\n\n" + wrapText(m.cleanSummary, contentWidth)
+				} else {
+					// Hide thinking tags (default)
+					summaryContent = "📝 Summary\n\n" + wrapText(m.cleanSummary, contentWidth)
+				}
+				m.viewport.SetContent(summaryContent)
+				// Reset scroll position to top when toggling
+				m.viewport.GotoTop()
+				return m, nil
+			}
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -204,12 +231,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Enable summary viewport if there's content to display
 			if m.runtime.Summary != "" {
 				m.showSummary = true
+				// Extract and remove thinking tags from the summary
+				m.thinkingContent = thinkingTagRegex.FindString(m.runtime.Summary)
+				m.cleanSummary = thinkingTagRegex.ReplaceAllString(m.runtime.Summary, "")
+				// Clean up extra whitespace left behind after removing thinking tags
+				m.cleanSummary = strings.TrimSpace(m.cleanSummary)
 				// Resize viewport to fit available space
 				m.viewport.Width = m.width - padding*2
 				m.viewport.Height = m.height - 15 // Leave space for header/footer
 				// Wrap content to viewport width before setting
 				contentWidth := m.viewport.Width
-				summaryContent := "📝 Summary\n\n" + wrapText(m.runtime.Summary, contentWidth)
+				// Default: show summary without thinking tags
+				summaryContent := "📝 Summary\n\n" + wrapText(m.cleanSummary, contentWidth)
 				m.viewport.SetContent(summaryContent)
 			}
 		}
@@ -391,7 +424,16 @@ func (m *Model) viewSummary() string {
 	sb.WriteString("\n")
 
 	// Navigation help
-	sb.WriteString(infoStyle.Render("Navigate: ↑/↓ or j/k (scroll) | Space/B (page) | g/G (start/end) | q (quit)"))
+	var toggleIndicator string
+	if m.thinkingContent != "" {
+		if m.showThinking {
+			toggleIndicator = infoStyle.Render(" [💭 Thinking: ON]")
+		} else {
+			toggleIndicator = infoStyle.Render(" [💭 Thinking: OFF]")
+		}
+	}
+	sb.WriteString(infoStyle.Render("Navigate: ↑/↓ or j/k (scroll) | Space/B (page) | g/G (start/end) | t (toggle thinking) | q (quit)"))
+	sb.WriteString(toggleIndicator)
 
 	return sb.String()
 }
@@ -400,4 +442,25 @@ func (m *Model) viewSummary() string {
 func wrapText(text string, width int) string {
 	style := lipgloss.NewStyle().Width(width)
 	return style.Render(text)
+}
+
+// wrapTextGray wraps text to a given width using lipgloss with gray colour.
+func wrapTextGray(text string, width int) string {
+	style := lipgloss.NewStyle().
+		Width(width).
+		Foreground(colorSubtle)
+	return style.Render(text)
+}
+
+// stripThinkingTags removes the <think> and </think> XML tags from the thinking content.
+func stripThinkingTags(content string) string {
+	// Remove <think> tag
+	reOpen := regexp.MustCompile(`<think>\s*`)
+	content = reOpen.ReplaceAllString(content, "")
+
+	// Remove </think> tag
+	reClose := regexp.MustCompile(`\s*</think>`)
+	content = reClose.ReplaceAllString(content, "")
+
+	return content
 }

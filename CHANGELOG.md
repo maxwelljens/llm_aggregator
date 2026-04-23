@@ -6,6 +6,17 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-04-23
+
+### Added
+
+- **Thinking tags toggle in TUI**: LLMs that output `<think>`/`</think>`
+  thinking tags now have those sections automatically removed from the summary
+  display by default. Users can press `t` to toggle the thinking section back
+  on, displayed in gray at the head of the output with XML tags stripped for
+  cleaner presentation. A status indicator shows whether thinking is currently
+  visible.
+
 ## [0.7.1] - 2026-04-22
 
 ### Fixed
