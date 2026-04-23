@@ -58,10 +58,6 @@ the LLM. The resulting output is printed to the terminal in your chosen format
     --temperature VALUE       Sampling temperature (0.0 to 1.0) (default: 0.7)
     --system-prompt TEXT      Custom system prompt for LLM
 
-<div align="center">
-  <img src="assets/demo.svg" alt="LLM Aggregator in action (SVG animation)" width=900>
-</div>
-
 ### Examples
 
 ```bash

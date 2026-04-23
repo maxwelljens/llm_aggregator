@@ -64,10 +64,11 @@ Tests for the Viper-based configuration system.
 3. Config file (`~/.config/llm_aggregator/config.toml`)
 4. Default values
 
-> [!IMPORTANT] CLI arguments only override config file values when explicitly
-> provided. If `--model` is not passed on the command line, the config file or
-> environment variable value is used. This prevents CLI defaults from
-> overriding configuration file values.
+> [!IMPORTANT]
+> CLI arguments only override config file values when explicitly provided. If
+> `--model` is not passed on the command line, the config file or environment
+> variable value is used. This prevents CLI defaults from overriding
+> configuration file values.
 
 ---
 
