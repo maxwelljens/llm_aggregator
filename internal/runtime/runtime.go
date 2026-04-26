@@ -34,6 +34,7 @@ type Runtime struct {
 	Output             string
 	OutputFile         string
 	IncludeArticles    bool
+	Plain              bool
 	Verbose            bool
 
 	// State
@@ -135,6 +136,13 @@ func (r *Runtime) Execute(ctx context.Context) error {
 
 // WriteOutput writes the formatted output to the specified writer
 func (r *Runtime) WriteOutput(writer io.Writer) error {
+	if r.Plain {
+		if _, err := fmt.Fprint(writer, r.Summary); err != nil {
+			return fmt.Errorf("error writing plain output: %w", err)
+		}
+		return nil
+	}
+
 	formatter, err := output.NewFormatter(r.Output)
 	if err != nil {
 		return fmt.Errorf("error creating formatter: %w", err)

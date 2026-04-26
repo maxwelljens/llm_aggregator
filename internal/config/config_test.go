@@ -383,6 +383,7 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 				"--max-tokens":            "1000",
 				"--temperature":          "0.3",
 				"--output":                "json",
+				"--plain":                 "",
 			},
 			expectFeeds: feedsFile,
 			expectModel: "deepseek-coder",
@@ -399,7 +400,10 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 				if strings.HasPrefix(key, "--") {
 					key = key[2:]
 				}
-				args = append(args, "--"+key, v)
+				args = append(args, "--"+key)
+				if v != "" {
+					args = append(args, v)
+				}
 			}
 
 			// Save original os.Args
@@ -433,6 +437,11 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 				if parsedArgs.APIKey != nil && *parsedArgs.APIKey != apiKey {
 					t.Errorf("APIKey = %q, want %q", *parsedArgs.APIKey, apiKey)
 				}
+			}
+
+			// Verify plain flag
+			if tt.name == "all CLI options" && !parsedArgs.Plain {
+				t.Error("Plain should be true when --plain is provided")
 			}
 		})
 	}

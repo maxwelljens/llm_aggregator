@@ -38,6 +38,7 @@ type Args struct {
 	Output          string `arg:"-o,--output" help:"Output format" choice:"text,json,markdown"`
 	OutputFile      string `arg:"--output-file" help:"Write output to file (default: stdout)"`
 	IncludeArticles bool   `arg:"--include-articles" help:"Include original articles in JSON output"`
+	Plain           bool   `arg:"-P,--plain" help:"Output only the raw LLM response without any formatting or metadata"`
 
 	// System options
 	SystemPrompt string `arg:"--system-prompt" help:"Custom system prompt for LLM"`
@@ -158,6 +159,9 @@ func (a *Args) ToViperMap() map[string]any {
 	}
 	if a.IncludeArticles {
 		m["include_articles"] = a.IncludeArticles
+	}
+	if a.Plain {
+		m["plain"] = a.Plain
 	}
 	return m
 }

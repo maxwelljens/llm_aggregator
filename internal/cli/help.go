@@ -223,6 +223,11 @@ func BuildStyledHelp(args *Args) string {
 					Name:        "--include-articles",
 					Description: "Include original articles in JSON output",
 				},
+				{
+					Short:       "-P",
+					Name:        "--plain",
+					Description: "Output only the raw LLM response without any formatting or metadata",
+				},
 			},
 		},
 		{
@@ -280,6 +285,7 @@ func BuildStyledHelp(args *Args) string {
 		{"llm_aggregator -f feeds.txt -p \"Summarise tech news\" -t", "With TUI progress bar"},
 		{"llm_aggregator -f feeds.txt -p \"Summarise news\" -D", "Dry run (no LLM API calls)"},
 		{"llm_aggregator -f feeds.txt -p \"Analyse AI\" -o json --output-file output.json", "JSON output to file"},
+		{"llm_aggregator -f feeds.txt -p \"Summarise news\" -P", "Plain output (no metadata)"},
 	}
 
 	for _, ex := range examples {

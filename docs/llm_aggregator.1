@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator
-.TH LLM_AGGREGATOR 1 "23 April 2026" "0.9.0" "User Commands"
+.TH LLM_AGGREGATOR 1 "26 April 2026" "0.12.0" "User Commands"
 .SH NAME
 llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
 .SH SYNOPSIS
@@ -114,6 +114,13 @@ Default: 0.7
 Custom system prompt for the LLM. If not specified, a default prompt is used.
 .SS Output Options
 .TP
+.B \-P\fR,\fB \-\-plain
+Output only the raw LLM response without any formatting or metadata. When
+active,
+.B -o\fR/
+.B \-\-output
+has no effect. Useful for piping or post-processing.
+.TP
 .B \-o\fR,\fB -o \fIFORMAT\fR
 Output format. Must be one of:
 .RS 12
@@ -135,6 +142,13 @@ Write output to FILE instead of stdout.
 Include the original articles in JSON output. Only applicable when
 .B -o json
 is used.
+.TP
+.B \-P\fR,\fB \-\-plain
+Output only the raw LLM response without any formatting or metadata. When
+active,
+.B -o\fR/
+.B \-\-output
+has no effect. Useful for piping or post-processing.
 .SS Interface Options
 .TP
 .B \-D\fR,\fB \-\-dry\-run
@@ -215,6 +229,9 @@ Output file path
 .TP
 .B LLM_AGGREGATOR_INCLUDE_ARTICLES
 Include articles in JSON output (true/false)
+.TP
+.B LLM_AGGREGATOR_PLAIN
+Plain output without metadata (true/false)
 .SH CONFIGURATION FILE
 Configuration can also be provided via a TOML file at:
 .PP

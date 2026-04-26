@@ -450,6 +450,7 @@ func TestArgsToViperMap(t *testing.T) {
 		Output:              "json",
 		OutputFile:          "/tmp/output.json",
 		IncludeArticles:     true,
+		Plain:               true,
 	}
 
 	viperMap := args.ToViperMap()
@@ -471,6 +472,7 @@ func TestArgsToViperMap(t *testing.T) {
 		{"output", "json"},
 		{"output_file", "/tmp/output.json"},
 		{"include_articles", true},
+		{"plain", true},
 	}
 
 	for _, tt := range tests {

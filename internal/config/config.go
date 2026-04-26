@@ -37,6 +37,7 @@ type Config struct {
 	Output          string `mapstructure:"output"`
 	OutputFile      string `mapstructure:"output_file"`
 	IncludeArticles bool   `mapstructure:"include_articles"`
+	Plain           bool   `mapstructure:"plain"`
 }
 
 // GetViper returns the global viper instance with all configuration sources set up.
@@ -197,6 +198,7 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	rt.Output = v.GetString("output")
 	rt.OutputFile = v.GetString("output_file")
 	rt.IncludeArticles = v.GetBool("include_articles")
+	rt.Plain = v.GetBool("plain")
 	return rt
 }
 
@@ -220,6 +222,7 @@ func bindEnvVars(v *viper.Viper) {
 	v.BindEnv("output", "LLM_AGGREGATOR_OUTPUT")
 	v.BindEnv("output_file", "LLM_AGGREGATOR_OUTPUT_FILE")
 	v.BindEnv("include_articles", "LLM_AGGREGATOR_INCLUDE_ARTICLES")
+	v.BindEnv("plain", "LLM_AGGREGATOR_PLAIN")
 }
 
 // GetConfigPath returns the path to the config file.

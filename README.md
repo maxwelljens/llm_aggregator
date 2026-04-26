@@ -36,6 +36,7 @@ the LLM. The resulting output is printed to the terminal in your chosen format
     -m, --model MODEL        Model to use (default: deepseek-chat)
     --base-url URL           API base URL (default: https://api.deepseek.com)
     --max-tokens N           Maximum tokens in response (default: 4000)
+    -P, --plain              Output only the raw LLM response without formatting or metadata
     -o, --output FORMAT      Output format: text, markdown, or json (default: text)
     --output-file FILE       Write output to FILE instead of STDOUT
     -t, --tui                Enable TUI interface with progress bar
@@ -189,6 +190,7 @@ All configuration options can also be set via environment variables with the `LL
 | `LLM_AGGREGATOR_OUTPUT` | Output format (default: "text") |
 | `LLM_AGGREGATOR_OUTPUT_FILE` | Output file path |
 | `LLM_AGGREGATOR_INCLUDE_ARTICLES` | Include articles in JSON output (true/false) |
+| `LLM_AGGREGATOR_PLAIN` | Plain output without metadata (true/false) |
 
 The API key can be provided via `--api‑key`, `LLM_AGGREGATOR_API_KEY` environment variable, or in the configuration file.
 
