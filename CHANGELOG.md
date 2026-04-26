@@ -6,6 +6,26 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-04-26
+
+### Added
+
+- **`--stdin` flag**: Read raw RSS/Atom XML directly from standard input,
+  composable with `-f/--feeds-file` to collate articles from both sources into
+  a single LLM summary. Stdin articles appear before feeds-file articles in the
+  collated output.
+  - `curl -s $URL | llm_aggregator --stdin -p "Summarise"`
+  - `llm_aggregator -f feeds.txt --stdin -p "Summarise all"`
+  - Environment variable: `LLM_AGGREGATOR_STDIN`
+- **`--feeds-file` is no longer required**: Either `--feeds-file` or `--stdin`
+  (or both) must be provided. A clear error is returned if neither is specified.
+
+### Changed
+
+- Refactored `ParseFeedsFromFile` to delegate to a new `ParseFeedFromReader`
+  method that accepts any `io.Reader`, enabling both stdin and unit test usage
+  with `strings.Reader`.
+
 ## [0.12.0] - 2026-04-26
 
 ### Added

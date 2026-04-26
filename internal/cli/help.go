@@ -121,16 +121,24 @@ func BuildStyledHelp(args *Args) string {
 			Title: "Required Arguments",
 			Options: []HelpOption{
 				{
-					Short:       "-f",
-					Name:        "--feeds-file FILE",
-					Description: "Path to file containing RSS feed URLs (one per line)",
-					Required:    true,
-				},
-				{
 					Short:       "-p",
 					Name:        "--prompt PROMPT",
 					Description: "User prompt for summarisation/analysis",
 					Required:    true,
+				},
+			},
+		},
+		{
+			Title: "Feed Input",
+			Options: []HelpOption{
+				{
+					Short:       "-f",
+					Name:        "--feeds-file FILE",
+					Description: "Path to file containing RSS feed URLs (one per line)",
+				},
+				{
+					Name:        "--stdin",
+					Description: "Read a single RSS/Atom feed from stdin (can be combined with --feeds-file)",
 				},
 			},
 		},
@@ -280,7 +288,9 @@ func BuildStyledHelp(args *Args) string {
 		cmd  string
 		desc string
 	}{
-		{"llm_aggregator -f feeds.txt -p \"Summarise news\"", "Basic usage with short flags"},
+		{"llm_aggregator -f feeds.txt -p \"Summarise news\"", "Basic usage with feeds file"},
+		{"curl -s https://example.com/feed.xml | llm_aggregator --stdin -p \"Summarise\"", "RSS from stdin"},
+		{"llm_aggregator -f feeds.txt --stdin -p \"Summarise all\"", "Combine feeds file with stdin feed"},
 		{"llm_aggregator -f feeds.txt -p \"Linux news\" -i linux,opensource -d 3", "Filter by keywords and age"},
 		{"llm_aggregator -f feeds.txt -p \"Summarise tech news\" -t", "With TUI progress bar"},
 		{"llm_aggregator -f feeds.txt -p \"Summarise news\" -D", "Dry run (no LLM API calls)"},

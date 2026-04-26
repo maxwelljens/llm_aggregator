@@ -383,10 +383,20 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 				"--max-tokens":            "1000",
 				"--temperature":          "0.3",
 				"--output":                "json",
+				"--stdin":                 "",
 				"--plain":                 "",
 			},
 			expectFeeds: feedsFile,
 			expectModel: "deepseek-coder",
+		},
+		{
+			name: "stdin only",
+			cliArgs: map[string]string{
+				"--prompt": "Summarise from stdin",
+				"--stdin":  "",
+			},
+			expectFeeds: "",
+			expectModel: "deepseek-chat",
 		},
 	}
 
@@ -442,6 +452,14 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 			// Verify plain flag
 			if tt.name == "all CLI options" && !parsedArgs.Plain {
 				t.Error("Plain should be true when --plain is provided")
+			}
+
+			// Verify stdin flag
+			if tt.name == "all CLI options" && !parsedArgs.Stdin {
+				t.Error("Stdin should be true when --stdin is provided")
+			}
+			if tt.name == "stdin only" && !parsedArgs.Stdin {
+				t.Error("Stdin should be true when --stdin is provided")
 			}
 		})
 	}

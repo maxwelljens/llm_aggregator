@@ -436,6 +436,7 @@ func TestArgsToViperMap(t *testing.T) {
 
 	args := &Args{
 		FeedsFile:           "/tmp/feeds.txt",
+		Stdin:               true,
 		Prompt:              "Test prompt",
 		MaxArticlesPerFeed:  intPtr(5),
 		MaxDaysOld:          intPtr(14),
@@ -473,6 +474,7 @@ func TestArgsToViperMap(t *testing.T) {
 		{"output_file", "/tmp/output.json"},
 		{"include_articles", true},
 		{"plain", true},
+		{"stdin", true},
 	}
 
 	for _, tt := range tests {

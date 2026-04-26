@@ -126,12 +126,12 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	fmt.Println(style.Heading("========================================"))
 	fmt.Println()
 
-	// Validate feeds file exists
-	if _, err := os.Stat(rt.FeedsFile); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, style.Errorf("Feeds file not found: %s", rt.FeedsFile))
-		os.Exit(1)
+	// Validate feed source exists
+	if rt.FeedsFile != "" {
+		fmt.Printf("%s Feeds file: %s\n", style.Success(""), style.Filepath(rt.FeedsFile))
+	} else {
+		fmt.Printf("%s Feed source: stdin\n", style.Success(""))
 	}
-	fmt.Printf("%s Feeds file: %s\n", style.Success(""), style.Filepath(rt.FeedsFile))
 
 	// Print configuration summary
 	fmt.Println()
@@ -155,10 +155,32 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 		nil,  // No progress context for cleaner dry-run output
 	)
 
-	articles, err := feedAgg.ParseFeedsFromFile(rt.FeedsFile)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds: %v", err))
-		os.Exit(1)
+	var articles []*aggregator.Article
+	var err error
+
+	if rt.Stdin && rt.FeedsFile != "" {
+		var stdinArticles []*aggregator.Article
+		var fileArticles []*aggregator.Article
+
+		if stdinArticles, err = feedAgg.ParseFeedFromStdin(); err != nil {
+			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse stdin feed: %v", err))
+			os.Exit(1)
+		}
+		if fileArticles, err = feedAgg.ParseFeedsFromFile(rt.FeedsFile); err != nil {
+			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds file: %v", err))
+			os.Exit(1)
+		}
+		articles = append(stdinArticles, fileArticles...)
+	} else if rt.Stdin {
+		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
+			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse stdin feed: %v", err))
+			os.Exit(1)
+		}
+	} else {
+		if articles, err = feedAgg.ParseFeedsFromFile(rt.FeedsFile); err != nil {
+			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds: %v", err))
+			os.Exit(1)
+		}
 	}
 
 	totalArticles := len(articles)

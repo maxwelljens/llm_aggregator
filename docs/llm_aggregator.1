@@ -56,6 +56,16 @@ Path to a file containing RSS feed URLs, one per line.
 User prompt for summarisation or analysis. This is sent to the LLM along
 with the article content.
 .SH OPTIONS
+.SS Feed Input
+.TP
+.B \-\-stdin
+Read a single RSS/Atom feed from stdin. Can be combined with
+.B \-f\fR/
+.B \-\-feeds\-file
+to collate articles from both sources.
+.TP
+.B \-f\fR,\fB -f \fIFILE\fR
+Path to a file containing RSS feed URLs, one per line.
 .SS Feed Aggregation Options
 .TP
 .B \-n\fR,\fB \-\-max\-articles\-per\-feed \fIN\fR

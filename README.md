@@ -30,7 +30,8 @@ the LLM. The resulting output is printed to the terminal in your chosen format
 
 ### Basic Options
 
-    -f, --feeds-file FILE    Path to file containing RSS feed URLs (one per line)   [required]
+    -f, --feeds-file FILE    Path to file containing RSS feed URLs (one per line)
+        --stdin              Read a single RSS/Atom feed from stdin (combinable with -f)
     -p, --prompt PROMPT      User prompt for summarisation/analysis                 [required]
     --api-key KEY            API key (default: read from $LLM_AGGREGATOR_API_KEY)
     -m, --model MODEL        Model to use (default: deepseek-chat)
@@ -64,6 +65,12 @@ the LLM. The resulting output is printed to the terminal in your chosen format
 ```bash
 # Basic usage: summarise tech news from a list of feeds
 llm_aggregator -f feeds.txt -p "What are the latest AI-related trends in free software?"
+
+# Read RSS feed directly from stdin
+curl -s https://example.com/feed.xml | llm_aggregator --stdin -p "Summarise"
+
+# Combine feeds file with stdin feed
+llm_aggregator -f feeds.txt --stdin -p "Summarise all"
 
 # With TUI progress bar
 llm_aggregator -f feeds.txt -p "Summarise tech news" -t
@@ -191,6 +198,7 @@ All configuration options can also be set via environment variables with the `LL
 | `LLM_AGGREGATOR_OUTPUT_FILE` | Output file path |
 | `LLM_AGGREGATOR_INCLUDE_ARTICLES` | Include articles in JSON output (true/false) |
 | `LLM_AGGREGATOR_PLAIN` | Plain output without metadata (true/false) |
+| `LLM_AGGREGATOR_STDIN` | Read RSS/Atom feed from stdin (true/false) |
 
 The API key can be provided via `--api‑key`, `LLM_AGGREGATOR_API_KEY` environment variable, or in the configuration file.
 

@@ -391,3 +391,76 @@ func TestEmptyFeedsFile(t *testing.T) {
 		t.Errorf("Expected 0 articles from empty file, got %d", len(articles))
 	}
 }
+
+func TestParseFeedFromReader(t *testing.T) {
+	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+
+	articles, err := fa.ParseFeedFromReader(strings.NewReader(validRSSFeed), "test-reader")
+	if err != nil {
+		t.Fatalf("Unexpected error parsing RSS feed: %v", err)
+	}
+	if len(articles) != 2 {
+		t.Errorf("Expected 2 articles, got %d", len(articles))
+	}
+
+	// Check first article
+	if articles[0].Title != "Article One" {
+		t.Errorf("Expected title 'Article One', got %q", articles[0].Title)
+	}
+	if articles[0].SourceFeed != "Test Feed" {
+		t.Errorf("Expected source feed 'Test Feed', got %q", articles[0].SourceFeed)
+	}
+
+	// Check second article
+	if articles[1].Title != "Article Two" {
+		t.Errorf("Expected title 'Article Two', got %q", articles[1].Title)
+	}
+}
+
+func TestParseFeedFromReaderAtom(t *testing.T) {
+	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+
+	articles, err := fa.ParseFeedFromReader(strings.NewReader(atomFeed), "atom-reader")
+	if err != nil {
+		t.Fatalf("Unexpected error parsing Atom feed: %v", err)
+	}
+	if len(articles) != 1 {
+		t.Errorf("Expected 1 article, got %d", len(articles))
+	}
+
+	if articles[0].Title != "Atom Article One" {
+		t.Errorf("Expected title 'Atom Article One', got %q", articles[0].Title)
+	}
+	if articles[0].Author != "Atom Author" {
+		t.Errorf("Expected author 'Atom Author', got %q", articles[0].Author)
+	}
+}
+
+func TestParseFeedFromReaderMalformed(t *testing.T) {
+	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+
+	// Truly malformed XML should return an error
+	_, err := fa.ParseFeedFromReader(strings.NewReader("not valid xml at all"), "malformed-reader")
+	if err == nil {
+		t.Error("Expected error for malformed content, got nil")
+	}
+}
+
+func TestParseFeedFromStdin(t *testing.T) {
+	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+
+	// Read from a pipes reader to avoid blocking on real stdin
+	r, w, _ := os.Pipe()
+	go func() {
+		w.WriteString(validRSSFeed)
+		w.Close()
+	}()
+
+	articles, err := fa.ParseFeedFromReader(r, "stdin")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(articles) != 2 {
+		t.Errorf("Expected 2 articles, got %d", len(articles))
+	}
+}

@@ -19,6 +19,7 @@ import (
 type Runtime struct {
 	// Configuration
 	FeedsFile          string
+	Stdin              bool
 	MaxArticlesPerFeed int
 	MaxDaysOld         int
 	MaxTotalArticles   int
@@ -52,10 +53,6 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	// We wrap it in a context to pass to sub-modules that expect a *progress.Context.
 	progCtx := progress.NewContext(r.Progress)
 
-	// Step 1: Aggregate feeds
-	r.Progress.SetStage("Aggregating feeds")
-	r.Progress.SetSubStage(fmt.Sprintf("Parsing feeds from %s", r.FeedsFile))
-
 	feedAgg := aggregator.NewFeedAggregatorWithProgress(
 		r.MaxArticlesPerFeed,
 		r.MaxDaysOld,
@@ -63,10 +60,44 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		progCtx, // Pass the new progress context
 	)
 
-	articles, err := feedAgg.ParseFeedsFromFile(r.FeedsFile)
-	if err != nil {
-		return fmt.Errorf("error aggregating feeds: %w", err)
+	// Step 1: Aggregate feeds
+	r.Progress.SetStage("Aggregating feeds")
+
+	var articles []*aggregator.Article
+	var err error
+
+	if r.Stdin && r.FeedsFile != "" {
+		// Both stdin and feeds file: collate results
+		r.Progress.SetSubStage("Parsing stdin feed and feeds file")
+
+		var stdinArticles []*aggregator.Article
+		var fileArticles []*aggregator.Article
+
+		if stdinArticles, err = feedAgg.ParseFeedFromStdin(); err != nil {
+			return fmt.Errorf("error parsing stdin feed: %w", err)
+		}
+
+		if fileArticles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
+			return fmt.Errorf("error aggregating feeds: %w", err)
+		}
+
+		articles = append(stdinArticles, fileArticles...)
+	} else if r.Stdin {
+		// Stdin only
+		r.Progress.SetSubStage("Parsing stdin feed")
+		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
+			return fmt.Errorf("error parsing stdin feed: %w", err)
+		}
+	} else if r.FeedsFile != "" {
+		// Feeds file only
+		r.Progress.SetSubStage(fmt.Sprintf("Parsing feeds from %s", r.FeedsFile))
+		if articles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
+			return fmt.Errorf("error aggregating feeds: %w", err)
+		}
+	} else {
+		return fmt.Errorf("no feed source specified: use --feeds-file or --stdin")
 	}
+
 	if len(articles) == 0 {
 		return fmt.Errorf("no articles found after parsing feeds")
 	}

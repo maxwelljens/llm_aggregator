@@ -15,7 +15,9 @@ var (
 
 // Args represents command-line arguments.
 type Args struct {
-	FeedsFile string `arg:"-f,--feeds-file,required" help:"Path to file containing RSS feed URLs (one per line)"`
+	// Feed input
+	FeedsFile string `arg:"-f,--feeds-file" help:"Path to file containing RSS feed URLs (one per line)"`
+	Stdin      bool   `arg:"--stdin" help:"Read a single RSS/Atom feed from stdin (can be combined with --feeds-file)"`
 	Prompt    string `arg:"-p,--prompt,required" help:"User prompt for summarisation/analysis"`
 
 	// Feed aggregation options
@@ -114,6 +116,9 @@ func (a *Args) ToViperMap() map[string]any {
 	m := map[string]any{}
 	if a.FeedsFile != "" {
 		m["feeds_file"] = a.FeedsFile
+	}
+	if a.Stdin {
+		m["stdin"] = a.Stdin
 	}
 	if a.MaxArticlesPerFeed != nil {
 		m["max_articles_per_feed"] = *a.MaxArticlesPerFeed

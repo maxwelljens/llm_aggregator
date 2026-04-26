@@ -23,6 +23,9 @@ type Config struct {
 	IncludeKeywords    string `mapstructure:"include_keywords"`
 	ExcludeKeywords    string `mapstructure:"exclude_keywords"`
 
+	// Feed input
+	Stdin bool `mapstructure:"stdin"`
+
 	// LLM API options
 	APIKey      string  `mapstructure:"api_key"`
 	BaseURL     string  `mapstructure:"base_url"`
@@ -199,6 +202,7 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	rt.OutputFile = v.GetString("output_file")
 	rt.IncludeArticles = v.GetBool("include_articles")
 	rt.Plain = v.GetBool("plain")
+	rt.Stdin = v.GetBool("stdin")
 	return rt
 }
 
@@ -223,6 +227,8 @@ func bindEnvVars(v *viper.Viper) {
 	v.BindEnv("output_file", "LLM_AGGREGATOR_OUTPUT_FILE")
 	v.BindEnv("include_articles", "LLM_AGGREGATOR_INCLUDE_ARTICLES")
 	v.BindEnv("plain", "LLM_AGGREGATOR_PLAIN")
+	// Feed input
+	v.BindEnv("stdin", "LLM_AGGREGATOR_STDIN")
 }
 
 // GetConfigPath returns the path to the config file.

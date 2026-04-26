@@ -50,9 +50,62 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 	}
 	defer file.Close()
 
-	content, err := io.ReadAll(file)
+	return fa.parseFeedsFromReader(file, filePath)
+}
+
+// ParseFeedFromStdin parses a single RSS/Atom feed from stdin.
+func (fa *FeedAggregator) ParseFeedFromStdin() ([]*Article, error) {
+	return fa.ParseFeedFromReader(os.Stdin, "stdin")
+}
+
+// ParseFeedFromReader parses a single RSS/Atom feed from an io.Reader.
+// The sourceName is used for progress/logging and to identify the feed source.
+func (fa *FeedAggregator) ParseFeedFromReader(reader io.Reader, sourceName string) ([]*Article, error) {
+	fp := gofeed.NewParser()
+	feed, err := fp.Parse(reader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read feeds file: %w", err)
+		return nil, fmt.Errorf("failed to parse feed from %s: %w", sourceName, err)
+	}
+
+	feedTitle := feed.Title
+	if feedTitle == "" {
+		feedTitle = sourceName
+	}
+
+	if fa.progressCtx != nil {
+		fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
+	}
+
+	var cutoffTime time.Time
+	if fa.maxDaysOld > 0 {
+		cutoffTime = time.Now().Add(-time.Duration(fa.maxDaysOld) * 24 * time.Hour)
+	}
+
+	maxItems := min(fa.maxArticlesPerFeed, len(feed.Items))
+	articles := make([]*Article, 0, maxItems)
+
+	for i := range feed.Items[:maxItems] {
+		article, err := fa.extractArticle(feed.Items[i], feedTitle, cutoffTime)
+		if err != nil {
+			if fa.progressCtx != nil {
+				fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, sourceName, err)
+			}
+			continue
+		}
+		if article != nil {
+			articles = append(articles, article)
+		}
+	}
+
+	return articles, nil
+}
+
+// parseFeedsFromReader reads feed URLs from an io.Reader and fetches each one.
+// Used by both file-based and stdin-based feed loading.
+func (fa *FeedAggregator) parseFeedsFromReader(reader io.Reader, sourceName string) ([]*Article, error) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read feeds from %s: %w", sourceName, err)
 	}
 
 	lines := strings.Split(string(content), "\n")
@@ -65,7 +118,7 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 	}
 
 	if fa.progressCtx != nil {
-		fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), filePath)
+		fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), sourceName)
 	}
 
 	// Use mutex to protect shared state
