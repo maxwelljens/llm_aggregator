@@ -16,11 +16,12 @@ import (
 
 // LLMClient is a client for interacting with LLM API.
 type LLMClient struct {
-	client      openai.Client
-	model       string
-	maxTokens   int
+	client    openai.Client
+	model     string
+	maxTokens int
 	temperature float64
-	logger      *progress.Context
+	llmTimeout int // seconds; 0 means no timeout
+	logger    *progress.Context
 }
 
 // NewLLMClient creates a new LLM client.
@@ -29,7 +30,8 @@ type LLMClient struct {
 // model: Model to use (defaults to "deepseek-chat")
 // maxTokens: Maximum tokens in response (defaults to 4000)
 // temperature: Sampling temperature (0.0 to 1.0, defaults to 0.7)
-func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature float64) (*LLMClient, error) {
+// timeoutSeconds: Request timeout in seconds (defaults to 300)
+func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature float64, timeoutSeconds int) (*LLMClient, error) {
 	// Get API key from parameter or environment variable
 	if apiKey == "" {
 		apiKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
@@ -54,6 +56,9 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature floa
 	if temperature == 0 {
 		temperature = defaults.DefaultTemperature
 	}
+	if timeoutSeconds == 0 {
+		timeoutSeconds = defaults.DefaultLLMTimeout
+	}
 
 	// Create OpenAI client configured for LLM
 	clientOpts := []option.RequestOption{
@@ -64,10 +69,11 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature floa
 	client := openai.NewClient(clientOpts...)
 
 	return &LLMClient{
-		client:      client,
-		model:       model,
-		maxTokens:   maxTokens,
+		client:     client,
+		model:      model,
+		maxTokens:  maxTokens,
 		temperature: temperature,
+		llmTimeout: timeoutSeconds,
 	}, nil
 }
 
@@ -211,6 +217,8 @@ func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.
 			return "", nil, fmt.Errorf("LLM API server error. Please try again later")
 		} else if strings.Contains(errStr, "404") {
 			return "", nil, fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
+		} else if strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "context canceled") {
+			return "", nil, fmt.Errorf("LLM request timed out after %d seconds", dc.llmTimeout)
 		}
 		return "", nil, fmt.Errorf("failed to connect to LLM API: %w", err)
 	}

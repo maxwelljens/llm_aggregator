@@ -30,6 +30,7 @@ type Runtime struct {
 	Model              string
 	MaxTokens          int
 	Temperature        float64
+	LLMTimeout         int // seconds; 0 means no timeout
 	Prompt             string
 	SystemPrompt       string
 	Output             string
@@ -139,6 +140,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.Model,
 		r.MaxTokens,
 		r.Temperature,
+		r.LLMTimeout,
 	)
 	if err != nil {
 		return fmt.Errorf("error initialising LLM client: %w", err)
@@ -150,11 +152,21 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	r.Progress.SetSubStage(fmt.Sprintf("Sending %d articles to LLM", len(processedArticles)))
 	r.Progress.StartWaiting()
 
+	// Derive a timeout context for the LLM call from the parent context.
+	// The parent context carries signal cancellation, so both signal interrupts
+	// and timeouts will abort the call.
+	callCtx := ctx
+	if r.LLMTimeout > 0 {
+		var cancel context.CancelFunc
+		callCtx, cancel = context.WithTimeout(ctx, time.Duration(r.LLMTimeout)*time.Second)
+		defer cancel()
+	}
+
 	summary, usage, err := llm.SummariseArticles(
 		processedArticles,
 		r.Prompt,
 		r.SystemPrompt,
-		ctx,
+		callCtx,
 	)
 	if err != nil {
 		return fmt.Errorf("error getting summary from LLM: %w", err)

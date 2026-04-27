@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator configuration file
-.TH LLM_AGGREGATOR 5 "27 April 2026" "0.14.0" "File Formats"
+.TH LLM_AGGREGATOR 5 "27 April 2026" "0.15.0" "File Formats"
 .SH NAME
 llm_aggregator.conf \- configuration file for llm_aggregator
 .SH DESCRIPTION
@@ -97,6 +97,12 @@ Lower values produce more deterministic output, higher values produce more
 creative output.
 .br
 Default: 0.7
+.TP
+.B timeout = \fIinteger\fR
+LLM request timeout in seconds. If the LLM API call takes longer than this,
+the request is aborted.
+.br
+Default: 300
 .SH "[system]"
 Options related to the LLM system prompt.
 .TP
@@ -283,6 +289,9 @@ Maximum tokens in response.
 .TP
 .B LLM_AGGREGATOR_TEMPERATURE
 Sampling temperature.
+.TP
+.B LLM_AGGREGATOR_TIMEOUT
+LLM request timeout in seconds.
 .TP
 .B LLM_AGGREGATOR_SYSTEM_PROMPT
 Custom system prompt.

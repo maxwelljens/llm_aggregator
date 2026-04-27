@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator
-.TH LLM_AGGREGATOR 1 "27 April 2026" "0.14.0" "User Commands"
+.TH LLM_AGGREGATOR 1 "27 April 2026" "0.15.0" "User Commands"
 .SH NAME
 llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
 .SH SYNOPSIS
@@ -116,12 +116,13 @@ Maximum number of tokens in the LLM response.
 .br
 Default: 4000
 .TP
-.B \-\-temperature \fIVALUE\fR
-Sampling temperature for the LLM (0.0 to 1.0). Higher values produce more
-creative output, lower values produce more deterministic output.
+.B \-\-timeout INR
+LLM request timeout in seconds. If the LLM API call takes longer than
+this, the request is aborted and an error is returned.
 .br
-Default: 0.7
+Default: 300
 .TP
+.B \-\-system\-prompt TEXT
 .B \-\-system\-prompt \fITEXT\fR
 Custom system prompt for the LLM. If not specified, a default prompt is used.
 .SS Output Options

@@ -58,6 +58,7 @@ the LLM. The resulting output is printed to the terminal in your chosen format
 ### LLM Configuration
 
     --temperature VALUE       Sampling temperature (0.0 to 1.0) (default: 0.7)
+    --timeout N               LLM request timeout in seconds (default: 300)
     --system-prompt TEXT      Custom system prompt for LLM
 
 ### Examples
@@ -188,6 +189,7 @@ All configuration options can also be set via environment variables with the `LL
 | `LLM_AGGREGATOR_MODEL` | Model name (default: "deepseek-chat") |
 | `LLM_AGGREGATOR_MAX_TOKENS` | Maximum tokens in response (default: 4000) |
 | `LLM_AGGREGATOR_TEMPERATURE` | Sampling temperature (default: 0.7) |
+| `LLM_AGGREGATOR_TIMEOUT` | LLM request timeout in seconds (default: 300) |
 | `LLM_AGGREGATOR_SYSTEM_PROMPT` | Custom system prompt |
 | `LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED` | Maximum articles per feed (default: 10) |
 | `LLM_AGGREGATOR_MAX_DAYS_OLD` | Maximum article age in days (default: 7) |

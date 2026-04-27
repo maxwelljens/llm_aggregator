@@ -6,6 +6,25 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-04-27
+
+### Added
+
+- **`--timeout N` flag**: LLM request timeout in seconds (default: 300). If the
+  LLM API call takes longer than this, the request is aborted and a descriptive
+  error is returned. The timeout is implemented as a `context.WithTimeout`
+  derived from the signal-handling context, so both signal interrupts and
+  timeouts abort the call.
+- **`DefaultLLMTimeout` constant**: Centralises the default timeout value
+  (300 seconds) in `internal/defaults`.
+- **LLM client unit tests**: Three tests for the constructor: timeout default,
+  all-parameter defaults, and API key validation.
+
+### Changed
+
+- **`LLMClient.llmTimeout` field**: Renamed from `timeoutSeconds` for clarity.
+  The field stores the timeout in seconds; 0 means no timeout.
+
 ## [0.14.0] - 2026-04-27
 
 ### Added

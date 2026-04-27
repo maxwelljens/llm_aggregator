@@ -35,6 +35,7 @@ type Args struct {
 	Model       *string  `arg:"-m,--model" help:"LLM model to use"`
 	MaxTokens   *int     `arg:"--max-tokens" help:"Maximum tokens in response"`
 	Temperature *float64 `arg:"--temperature" help:"Sampling temperature (0.0 to 1.0)"`
+	Timeout     *int     `arg:"--timeout" help:"LLM request timeout in seconds (default: 300)"`
 
 	// Output options
 	Output          string `arg:"-o,--output" help:"Output format" choice:"text,json,markdown"`
@@ -149,6 +150,9 @@ func (a *Args) ToViperMap() map[string]any {
 	}
 	if a.Temperature != nil {
 		m["temperature"] = *a.Temperature
+	}
+	if a.Timeout != nil {
+		m["timeout"] = *a.Timeout
 	}
 	if a.Prompt != "" {
 		m["prompt"] = a.Prompt

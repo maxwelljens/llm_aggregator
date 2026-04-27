@@ -32,6 +32,7 @@ type Config struct {
 	Model       string  `mapstructure:"model"`
 	MaxTokens   int     `mapstructure:"max_tokens"`
 	Temperature float64 `mapstructure:"temperature"`
+	Timeout     int     `mapstructure:"timeout"`
 
 	// System prompt
 	SystemPrompt string `mapstructure:"system_prompt"`
@@ -98,6 +99,7 @@ func setDefaultsOn(v *viper.Viper) {
 	v.SetDefault("model", defaults.DefaultModel)
 	v.SetDefault("max_tokens", defaults.DefaultMaxTokens)
 	v.SetDefault("temperature", defaults.DefaultTemperature)
+	v.SetDefault("timeout", defaults.DefaultLLMTimeout)
 	// System prompt default
 	v.SetDefault("system_prompt", defaults.DefaultSystemPrompt)
 	// Output defaults
@@ -195,6 +197,7 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	rt.Model = v.GetString("model")
 	rt.MaxTokens = v.GetInt("max_tokens")
 	rt.Temperature = v.GetFloat64("temperature")
+	rt.LLMTimeout = v.GetInt("timeout")
 	// System prompt
 	rt.SystemPrompt = v.GetString("system_prompt")
 	// Output options
@@ -220,6 +223,7 @@ func bindEnvVars(v *viper.Viper) {
 	v.BindEnv("model", "LLM_AGGREGATOR_MODEL")
 	v.BindEnv("max_tokens", "LLM_AGGREGATOR_MAX_TOKENS")
 	v.BindEnv("temperature", "LLM_AGGREGATOR_TEMPERATURE")
+	v.BindEnv("timeout", "LLM_AGGREGATOR_TIMEOUT")
 	// System prompt
 	v.BindEnv("system_prompt", "LLM_AGGREGATOR_SYSTEM_PROMPT")
 	// Output options

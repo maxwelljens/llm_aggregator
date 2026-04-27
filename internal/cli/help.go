@@ -208,6 +208,11 @@ func BuildStyledHelp(args *Args) string {
 					Default:     "0.7",
 				},
 				{
+					Name:        "--timeout N",
+					Description: "LLM request timeout in seconds (default: 300)",
+					Default:     "300",
+				},
+				{
 					Name:        "--system-prompt TEXT",
 					Description: "Custom system prompt for LLM",
 				},

@@ -184,6 +184,7 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	fmt.Printf("  Exclude keywords: %s\n", style.Value(fmt.Sprintf("%v", rt.ExcludeKeywords)))
 	fmt.Printf("  Output format: %s\n", style.Value(rt.Output))
 	fmt.Printf("  Model: %s\n", style.Value(rt.Model))
+	fmt.Printf("  LLM timeout: %s\n", style.Value(fmt.Sprintf("%d seconds", rt.LLMTimeout)))
 	fmt.Println()
 
 	// Fetch and process feeds (but don't call LLM)

@@ -96,6 +96,21 @@ Tests for central default constants.
 | `DefaultMaxTotalArticles` | `20` | Total articles limit |
 | `DefaultOutput` | `text` | Output format |
 | `DefaultIncludeArticles` | `false` | Include articles in output |
+| `DefaultLLMTimeout` | `300` | LLM request timeout (seconds) |
+
+---
+
+### `internal/llm`: LLM client
+
+Tests for the LLM client constructor, defaults, and configuration.
+
+| Test | Description |
+|------|-------------|
+| `TestNewLLMClientTimeout` | Verifies `timeoutSeconds=0` defaults to 300; custom values are stored |
+| `TestNewLLMClientDefaults` | Verifies model, maxTokens, temperature, and llmTimeout all get defaults |
+| `TestNewLLMClientRequiresAPIKey` | Verifies missing API key returns a descriptive error |
+
+**Client field naming:** The `LLMClient` struct uses `llmTimeout int` (seconds; 0 means no timeout) to avoid confusion with `http.Client.Timeout` which operates at the transport layer.
 
 ---
 
@@ -356,7 +371,7 @@ Current coverage status:
 | `processor` | 76% | All filtering/sorting tested |
 | `runtime` | 0% | Integration-only; context propagation not exercised by unit tests |
 | `signals` | 89% | Handler lifecycle and concurrency tested |
-| `llm` | 0% | Requires advanced API mocking |
+| `llm` | 22% | Constructor defaults, API key validation, and timeout field configuration |
 | `tui` | 0% | Requires terminal interaction |
 | `progress` | 0% | Interface only |
 | `tokeniser` | 0% | Depends on library internals |

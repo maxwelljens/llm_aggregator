@@ -12,6 +12,7 @@ const (
 	DefaultBaseURL     = "https://api.deepseek.com"
 	DefaultMaxTokens   = 4000
 	DefaultTemperature = 0.7
+	DefaultLLMTimeout  = 300 // seconds
 
 	// Feed aggregation defaults
 	DefaultMaxArticlesPerFeed = 10
