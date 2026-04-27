@@ -6,16 +6,20 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-04-27
 
 ### Added
 
-- Linting using `golangci-lint`, mostly  for readability and maintainability.
+- Linting and code quality tooling via `golangci-lint`.
 
 ### Fixed
 
-- Fixed all lint issues across the codebase, including unchecked error returns,
-  string formatting performance, dead code, and documentation style.
+- Tight CPU-spinning polling loop in signal handler (added `time.Sleep` to
+  avoid busy-waiting).
+- `--temperature 0` was silently overwritten by the default (0.7); temperature
+  is now a pointer so `nil` means "not provided" and a non-nil value — including
+  `0.0` — means "explicitly set".
+- `WasInterrupted` godoc comment capitalised to satisfy `golint`.
 
 ## [0.15.0] - 2026-04-27
 

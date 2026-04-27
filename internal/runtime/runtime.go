@@ -31,7 +31,7 @@ type Runtime struct {
 	BaseURL            string
 	Model              string
 	MaxTokens          int
-	Temperature        float64
+	Temperature        *float64
 	LLMTimeout         int // seconds; 0 means no timeout
 	Prompt             string
 	SystemPrompt       string
@@ -183,7 +183,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	return nil
 }
 
-// was interrupted by a signal during execution.
+// WasInterrupted reports whether the runtime was interrupted by a signal during execution.
 func (r *Runtime) WasInterrupted() bool {
 	return r.Interrupted
 }

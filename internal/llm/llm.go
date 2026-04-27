@@ -17,17 +17,17 @@ import (
 
 // LLMClient is a client for interacting with LLM API.
 type LLMClient struct {
-	client    openai.Client
-	model     string
-	maxTokens int
-	temperature float64
+	client     openai.Client
+	model      string
+	maxTokens  int
+	temperature *float64
 	llmTimeout int // seconds; 0 means no timeout
-	logger    *progress.Context
+	logger     *progress.Context
 }
 
 // NewLLMClient creates an LLM API client.
 // Set apiKey to "" to read from LLM_AGGREGATOR_API_KEY.
-func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature float64, timeoutSeconds int) (*LLMClient, error) {
+func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature *float64, timeoutSeconds int) (*LLMClient, error) {
 	// Get API key from parameter or environment variable
 	if apiKey == "" {
 		apiKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
@@ -49,8 +49,9 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature floa
 	if maxTokens == 0 {
 		maxTokens = defaults.DefaultMaxTokens
 	}
-	if temperature == 0 {
-		temperature = defaults.DefaultTemperature
+	if temperature == nil {
+		t := defaults.DefaultTemperature
+		temperature = &t
 	}
 	if timeoutSeconds == 0 {
 		timeoutSeconds = defaults.DefaultLLMTimeout
@@ -185,7 +186,7 @@ If relevant, note any patterns, contradictions, or notable developments.`,
 func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.ChatCompletionMessageParamUnion) (string, *TokenUsage, error) {
 	if dc.logger != nil {
 		dc.logger.Logf("Calling LLM API with model: %s", dc.model)
-		dc.logger.Logf("Max tokens: %d, Temperature: %.2f", dc.maxTokens, dc.temperature)
+		dc.logger.Logf("Max tokens: %d, Temperature: %.2f", dc.maxTokens, *dc.temperature)
 		dc.logger.Logf("Messages count: %d", len(messages))
 	}
 
@@ -193,7 +194,7 @@ func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.
 		Model:       dc.model,
 		Messages:    messages,
 		MaxTokens:   openai.Int(int64(dc.maxTokens)),
-		Temperature: openai.Float(dc.temperature),
+		Temperature: openai.Float(*dc.temperature),
 	})
 
 	if err != nil {

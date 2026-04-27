@@ -36,7 +36,7 @@ func TestNewLLMClientTimeout(t *testing.T) {
 				"",
 				"",
 				0,
-				0,
+				nil,
 				tt.timeout,
 			)
 			if err != nil {
@@ -51,7 +51,7 @@ func TestNewLLMClientTimeout(t *testing.T) {
 
 func TestNewLLMClientDefaults(t *testing.T) {
 	// Verify all defaults are applied when only API key is provided
-	client, err := NewLLMClient("test-api-key", "", "", 0, 0, 0)
+	client, err := NewLLMClient("test-api-key", "", "", 0, nil, 0)
 	if err != nil {
 		t.Fatalf("NewLLMClient returned unexpected error: %v", err)
 	}
@@ -62,8 +62,8 @@ func TestNewLLMClientDefaults(t *testing.T) {
 	if client.maxTokens != 4000 {
 		t.Errorf("maxTokens = %d, want %d", client.maxTokens, 4000)
 	}
-	if client.temperature != 0.7 {
-		t.Errorf("temperature = %f, want %f", client.temperature, 0.7)
+	if *client.temperature != 0.7 {
+		t.Errorf("temperature = %f, want %f", *client.temperature, 0.7)
 	}
 	if client.llmTimeout != 300 {
 		t.Errorf("llmTimeout = %d, want %d", client.llmTimeout, 300)
@@ -71,7 +71,7 @@ func TestNewLLMClientDefaults(t *testing.T) {
 }
 
 func TestNewLLMClientRequiresAPIKey(t *testing.T) {
-	_, err := NewLLMClient("", "", "", 0, 0, 0)
+	_, err := NewLLMClient("", "", "", 0, nil, 0)
 	if err == nil {
 		t.Error("NewLLMClient expected error for missing API key, got nil")
 	}

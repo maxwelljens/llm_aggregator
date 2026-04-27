@@ -25,9 +25,6 @@ concise summary, without reading dozens of posts.
 ## Quick start
 
 ```bash
-# Install
-go install github.com/maxwelljensen/llm_aggregator/cmd/llm_aggregator.go@latest
-
 # Create a feeds file
 cat > feeds.txt << 'EOF'
 https://news.ycombinator.com/rss
@@ -35,7 +32,8 @@ https://lwn.net/headlines/newrss
 EOF
 
 # Run
-llm_aggregator -f feeds.txt -p "What are the top tech stories today?"
+llm_aggregator --api-key <YOUR_KEY> --base-url <URL> \
+-f feeds.txt -p "What are the top tech stories today?"
 ```
 
 **First run?** See [docs/USAGE.md](docs/USAGE.md) for installation, configuration,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"llm_aggregator/internal/aggregator"
@@ -96,12 +97,13 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler)
 	// This goroutine lives until the Watch() goroutine exits (signalled via sh).
 	go func() {
 		// Poll IsExiting() — returns true as soon as the signal is received.
-		// No busy-waiting: the select in Watch() unblocks immediately on signal.
+		// Sleep briefly to avoid a tight busy-wait loop.
 		for {
 			if sh.IsExiting() {
 				cancel()
 				return
 			}
+			time.Sleep(time.Millisecond)
 		}
 	}()
 

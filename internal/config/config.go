@@ -196,7 +196,8 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	rt.BaseURL = v.GetString("base_url")
 	rt.Model = v.GetString("model")
 	rt.MaxTokens = v.GetInt("max_tokens")
-	rt.Temperature = v.GetFloat64("temperature")
+	t := v.GetFloat64("temperature")
+	rt.Temperature = &t
 	rt.LLMTimeout = v.GetInt("timeout")
 	// System prompt
 	rt.SystemPrompt = v.GetString("system_prompt")
