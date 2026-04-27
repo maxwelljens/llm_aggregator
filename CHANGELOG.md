@@ -6,6 +6,17 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Linting using `golangci-lint`, mostly  for readability and maintainability.
+
+### Fixed
+
+- Fixed all lint issues across the codebase, including unchecked error returns,
+  string formatting performance, dead code, and documentation style.
+
 ## [0.15.0] - 2026-04-27
 
 ### Added

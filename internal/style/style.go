@@ -38,7 +38,7 @@ var (
 	// White for headings
 	White = Colour("15")
 
-	// Bright black for muted/debug text
+	// BrightBlack is bright black for muted/debug text.
 	BrightBlack = Colour("8")
 )
 

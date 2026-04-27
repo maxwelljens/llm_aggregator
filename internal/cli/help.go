@@ -36,7 +36,7 @@ func renderFlag(short, long string) string {
 	if short != "" {
 		return fmt.Sprintf("%s, %s", short, long)
 	}
-	return fmt.Sprintf("%s", long)
+	return long
 }
 
 func getOptionValue(opt HelpOption) string {
@@ -316,5 +316,5 @@ func BuildStyledHelp(args *Args) string {
 
 func WriteHelp(args *Args, w *os.File) {
 	output := BuildStyledHelp(args)
-	w.WriteString(output)
+	w.WriteString(output) //nolint:errcheck
 }

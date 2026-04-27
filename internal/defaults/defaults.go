@@ -7,20 +7,27 @@ package defaults
 // and runtime settings.
 
 const (
-	// LLM API defaults
-	DefaultModel       = "deepseek-chat"
-	DefaultBaseURL     = "https://api.deepseek.com"
-	DefaultMaxTokens   = 4000
+	// DefaultModel is the default LLM model.
+	DefaultModel = "deepseek-chat"
+	// DefaultBaseURL is the default API base URL.
+	DefaultBaseURL = "https://api.deepseek.com"
+	// DefaultMaxTokens is the default max tokens for LLM responses.
+	DefaultMaxTokens = 4000
+	// DefaultTemperature is the default sampling temperature.
 	DefaultTemperature = 0.7
-	DefaultLLMTimeout  = 300 // seconds
+	// DefaultLLMTimeout is the default LLM request timeout in seconds.
+	DefaultLLMTimeout = 300
 
-	// Feed aggregation defaults
+	// DefaultMaxArticlesPerFeed is the default max articles per feed.
 	DefaultMaxArticlesPerFeed = 10
-	DefaultMaxDaysOld         = 7
-	DefaultMaxTotalArticles   = 20
+	// DefaultMaxDaysOld is the default max age for articles in days.
+	DefaultMaxDaysOld = 7
+	// DefaultMaxTotalArticles is the default max total articles.
+	DefaultMaxTotalArticles = 20
 
-	// Output defaults
-	DefaultOutput         = "text"
+	// DefaultOutput is the default output format.
+	DefaultOutput = "text"
+	// DefaultIncludeArticles is the default for including articles.
 	DefaultIncludeArticles = false
 )
 

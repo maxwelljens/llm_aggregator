@@ -46,22 +46,12 @@ const atomFeed = `<?xml version="1.0" encoding="UTF-8"?>
   </entry>
 </feed>`
 
-const malformedRSSFeed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>Malformed Feed</title>
-    <item>
-      <title>Incomplete Article</title>
-      <!-- missing link -->
-    </item>
-  </channel>
-</rss>`
-
 func TestNewFeedAggregatorWithProgress(t *testing.T) {
 	t.Run("with nil progress context", func(t *testing.T) {
 		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
 		if fa == nil {
 			t.Error("Expected non-nil FeedAggregator")
+			return
 		}
 		if fa.progressCtx != nil {
 			t.Error("Expected nil progress context")
@@ -134,48 +124,6 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Errorf("File parsing error: %v", err)
 		}
 	})
-}
-
-func writeTestFile(path, content string) error {
-	return writeFile(path, []byte(content))
-}
-
-func writeFile(path string, data []byte) error {
-	f, err := createFile(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write(data)
-	return err
-}
-
-func createFile(path string) (*testFile, error) {
-	return &testFile{path: path}, nil
-}
-
-type testFile struct {
-	path string
-}
-
-func (tf *testFile) Write(data []byte) (int, error) {
-	// Using os.Write would be cleaner but let's use os package directly
-	return len(data), nil
-}
-
-func (tf *testFile) Close() error {
-	return nil
-}
-
-// Helper to actually write to temp file
-func writeTempFile(t *testing.T, content string) string {
-	t.Helper()
-	tmpFile := "/tmp/llm_aggregator_test_feeds.txt"
-	err := os.WriteFile(tmpFile, []byte(content), 0644)
-	if err != nil {
-		t.Fatalf("Failed to write temp file: %v", err)
-	}
-	return tmpFile
 }
 
 func TestArticleAgeFiltering(t *testing.T) {
@@ -452,8 +400,8 @@ func TestParseFeedFromStdin(t *testing.T) {
 	// Read from a pipes reader to avoid blocking on real stdin
 	r, w, _ := os.Pipe()
 	go func() {
-		w.WriteString(validRSSFeed)
-		w.Close()
+		_, _ = w.WriteString(validRSSFeed) //nolint:errcheck
+		w.Close()                           //nolint:errcheck
 	}()
 
 	articles, err := fa.ParseFeedFromReader(r, "stdin")

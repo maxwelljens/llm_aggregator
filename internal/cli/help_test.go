@@ -21,9 +21,7 @@ func TestShouldStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			old := os.Getenv("NO_COLOR")
-			os.Setenv("NO_COLOR", tt.noColorVal)
-			defer os.Setenv("NO_COLOR", old)
+			t.Setenv("NO_COLOR", tt.noColorVal)
 
 			got := shouldStyle()
 			if got != tt.want {
@@ -114,9 +112,7 @@ func TestGetOptionValue(t *testing.T) {
 }
 
 func TestMaxFlagWidth(t *testing.T) {
-	old := os.Getenv("NO_COLOR")
-	os.Setenv("NO_COLOR", "1")
-	defer os.Setenv("NO_COLOR", old)
+	t.Setenv("NO_COLOR", "1")
 
 	sections := []HelpSection{
 		{
@@ -144,9 +140,7 @@ func TestMaxFlagWidth(t *testing.T) {
 
 func TestFormatSection(t *testing.T) {
 	// Test with NO_COLOR to avoid lipgloss dependency in assertions
-	old := os.Getenv("NO_COLOR")
-	os.Setenv("NO_COLOR", "1")
-	defer os.Setenv("NO_COLOR", old)
+	t.Setenv("NO_COLOR", "1")
 
 	section := HelpSection{
 		Title: "Test Section",
@@ -189,10 +183,8 @@ func TestFormatSection(t *testing.T) {
 }
 
 func TestFormatSectionWithStyling(t *testing.T) {
-	// Test with color enabled
-	old := os.Getenv("NO_COLOR")
-	os.Unsetenv("NO_COLOR")
-	defer os.Setenv("NO_COLOR", old)
+	// Ensure NO_COLOR is not set for this test
+	_ = os.Unsetenv("NO_COLOR")
 
 	// Suppress the lipgloss warning during test
 	_ = style.NoColor
@@ -222,9 +214,7 @@ func TestFormatSectionWithStyling(t *testing.T) {
 
 func TestBuildStyledHelp(t *testing.T) {
 	// Test without color
-	old := os.Getenv("NO_COLOR")
-	os.Setenv("NO_COLOR", "1")
-	defer os.Setenv("NO_COLOR", old)
+	t.Setenv("NO_COLOR", "1")
 
 	args := &Args{FeedsFile: "/tmp/feeds.txt", Prompt: "Summarise"}
 	output := BuildStyledHelp(args)
@@ -247,9 +237,7 @@ func TestBuildStyledHelp(t *testing.T) {
 }
 
 func TestBuildStyledHelpWithColor(t *testing.T) {
-	old := os.Getenv("NO_COLOR")
-	os.Unsetenv("NO_COLOR")
-	defer os.Setenv("NO_COLOR", old)
+	_ = os.Unsetenv("NO_COLOR")
 
 	args := &Args{FeedsFile: "/tmp/feeds.txt", Prompt: "Summarise"}
 	output := BuildStyledHelp(args)
@@ -269,22 +257,20 @@ func TestBuildStyledHelpWithColor(t *testing.T) {
 func TestWriteHelp(t *testing.T) {
 	args := &Args{FeedsFile: "/tmp/feeds.txt", Prompt: "Summarise"}
 
-	old := os.Getenv("NO_COLOR")
-	os.Setenv("NO_COLOR", "1")
-	defer os.Setenv("NO_COLOR", old)
+	t.Setenv("NO_COLOR", "1")
 
-	tmpFile, err := os.CreateTemp("", "help_test_*.txt")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "help_test_*.txt")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }() //nolint:errcheck
+	_ = tmpFile.Close()                               //nolint:errcheck
 
 	w, err := os.OpenFile(tmpFile.Name(), os.O_WRONLY, 0644)
 	if err != nil {
 		t.Fatalf("Failed to open temp file for write: %v", err)
 	}
-	defer w.Close()
+	defer func() { _ = w.Close() }() //nolint:errcheck
 
 	WriteHelp(args, w)
 

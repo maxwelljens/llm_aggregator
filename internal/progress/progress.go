@@ -39,18 +39,18 @@ func NewSimpleLogger(writer io.Writer, debug bool) *SimpleLogger {
 }
 
 func (sl *SimpleLogger) Logf(format string, args ...any) {
-	fmt.Fprintf(sl.writer, format+"\n", args...)
+	_, _ = fmt.Fprintf(sl.writer, format+"\n", args...)
 }
 
 func (sl *SimpleLogger) Warningf(format string, args ...any) {
 	// Use style.Warningf for orange bold WARNING prefix
-	fmt.Fprintf(sl.writer, "%s\n", style.Warningf(format, args...))
+	_, _ = fmt.Fprintf(sl.writer, "%s\n", style.Warningf(format, args...))
 }
 
 func (sl *SimpleLogger) Debugf(format string, args ...any) {
 	if sl.debug {
 		// Use style.Debugf for styled debug output
-		fmt.Fprintf(sl.writer, "%s\n", style.Debugf(format, args...))
+		_, _ = fmt.Fprintf(sl.writer, "%s\n", style.Debugf(format, args...))
 	}
 }
 

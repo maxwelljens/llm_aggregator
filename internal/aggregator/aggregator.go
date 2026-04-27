@@ -48,7 +48,7 @@ func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to open feeds file: %w", err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	return fa.parseFeedsFromReader(file, filePath)
 }
@@ -85,13 +85,7 @@ func (fa *FeedAggregator) ParseFeedFromReader(reader io.Reader, sourceName strin
 	articles := make([]*Article, 0, maxItems)
 
 	for i := range feed.Items[:maxItems] {
-		article, err := fa.extractArticle(feed.Items[i], feedTitle, cutoffTime)
-		if err != nil {
-			if fa.progressCtx != nil {
-				fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, sourceName, err)
-			}
-			continue
-		}
+		article := fa.extractArticle(feed.Items[i], feedTitle, cutoffTime)
 		if article != nil {
 			articles = append(articles, article)
 		}
@@ -197,14 +191,8 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 
 	maxItems := min(fa.maxArticlesPerFeed, len(feed.Items))
 
-	for i, item := range feed.Items[:maxItems] {
-		article, err := fa.extractArticle(item, feedTitle, cutoffTime)
-		if err != nil {
-			if fa.progressCtx != nil {
-				fa.progressCtx.Warningf("Failed to extract article %d from %s: %v", i, feedURL, err)
-			}
-			continue
-		}
+	for _, item := range feed.Items[:maxItems] {
+		article := fa.extractArticle(item, feedTitle, cutoffTime)
 		if article != nil {
 			articles = append(articles, article)
 		}
@@ -213,7 +201,7 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 	return articles, nil
 }
 
-func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cutoffTime time.Time) (*Article, error) {
+func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cutoffTime time.Time) *Article {
 	// Extract metadata
 	title := item.Title
 	if title == "" {
@@ -222,7 +210,7 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 
 	link := item.Link
 	if link == "" {
-		return nil, nil
+		return nil
 	}
 
 	// Parse publication date
@@ -233,7 +221,7 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 		if fa.progressCtx != nil {
 			fa.progressCtx.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
 		}
-		return nil, nil
+		return nil
 	}
 
 	// Extract author
@@ -263,7 +251,7 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 		Published:  published,
 		Author:     author,
 		SourceFeed: feedTitle,
-	}, nil
+	}
 }
 
 func (fa *FeedAggregator) parsePublishedDate(item *gofeed.Item) time.Time {
@@ -314,7 +302,7 @@ func (fa *FeedAggregator) extractContent(item *gofeed.Item, link string) string 
 }
 
 func (fa *FeedAggregator) fetchWebpageContent(url string) (string, error) {
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -324,7 +312,7 @@ func (fa *FeedAggregator) fetchWebpageContent(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("HTTP status %d", resp.StatusCode)

@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -68,7 +69,8 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	var articles []*aggregator.Article
 	var err error
 
-	if r.Stdin && r.FeedsFile != "" {
+	switch {
+	case r.Stdin && r.FeedsFile != "":
 		// Both stdin and feeds file: collate results
 		r.Progress.SetSubStage("Parsing stdin feed and feeds file")
 
@@ -83,25 +85,25 @@ func (r *Runtime) Execute(ctx context.Context) error {
 			return fmt.Errorf("error aggregating feeds: %w", err)
 		}
 
-		articles = append(stdinArticles, fileArticles...)
-	} else if r.Stdin {
+		articles = append(stdinArticles, fileArticles...) //nolint:gocritic
+	case r.Stdin:
 		// Stdin only
 		r.Progress.SetSubStage("Parsing stdin feed")
 		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
 			return fmt.Errorf("error parsing stdin feed: %w", err)
 		}
-	} else if r.FeedsFile != "" {
+	case r.FeedsFile != "":
 		// Feeds file only
-		r.Progress.SetSubStage(fmt.Sprintf("Parsing feeds from %s", r.FeedsFile))
+		r.Progress.SetSubStage("Parsing feeds from " + r.FeedsFile)
 		if articles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
 			return fmt.Errorf("error aggregating feeds: %w", err)
 		}
-	} else {
-		return fmt.Errorf("no feed source specified: use --feeds-file or --stdin")
+	default:
+		return errors.New("no feed source specified: use --feeds-file or --stdin")
 	}
 
 	if len(articles) == 0 {
-		return fmt.Errorf("no articles found after parsing feeds")
+		return errors.New("no articles found after parsing feeds")
 	}
 	r.Progress.SetArticleCount(len(articles), 0)
 
@@ -120,7 +122,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	processedArticles := contentProc.ProcessArticles(articles, "date", true)
 
 	if len(processedArticles) == 0 {
-		return fmt.Errorf("no articles passed filtering")
+		return errors.New("no articles passed filtering")
 	}
 	r.Progress.SetArticleCount(len(articles), len(articles)-len(processedArticles))
 
@@ -132,7 +134,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 
 	// Step 3: Initialise LLM client
 	r.Progress.SetStage("Connecting to LLM")
-	r.Progress.SetSubStage(fmt.Sprintf("Using model: %s", r.Model))
+	r.Progress.SetSubStage("Using model: " + r.Model)
 
 	llm, err := llm.NewLLMClient(
 		r.APIKey,
@@ -197,7 +199,7 @@ func (r *Runtime) WriteOutput(writer io.Writer) error {
 	}
 
 	outputData := map[string]any{
-		"title":          fmt.Sprintf("LLM Aggregator Summary - %s", time.Now().Format("2006-01-02 15:04")),
+		"title":          "LLM Aggregator Summary - " + time.Now().Format("2006-01-02 15:04"),
 		"prompt":         r.Prompt,
 		"model":          r.Model,
 		"articles_count": len(r.Articles),
@@ -231,7 +233,7 @@ func (r *Runtime) WriteOutputToFile() error {
 	if err != nil {
 		return fmt.Errorf("error creating output file: %w", err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	return r.WriteOutput(file)
 }

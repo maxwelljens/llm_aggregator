@@ -46,7 +46,7 @@ func (f *Formatter) formatMarkdown(data map[string]any) (string, error) {
 
 	// Title
 	title := getString(data, "title", "LLM Aggregator Summary")
-	lines = append(lines, fmt.Sprintf("# %s", title))
+	lines = append(lines, "# "+title)
 	lines = append(lines, "")
 
 	// Metadata
@@ -58,10 +58,10 @@ func (f *Formatter) formatMarkdown(data map[string]any) (string, error) {
 	articlesCount := getInt(data, "articles_count", 0)
 	timestamp := getString(data, "timestamp", time.Now().Format(time.RFC3339))
 
-	lines = append(lines, fmt.Sprintf("- **Prompt**: %s", prompt))
-	lines = append(lines, fmt.Sprintf("- **Model**: %s", model))
+	lines = append(lines, "- **Prompt**: "+prompt)
+	lines = append(lines, "- **Model**: "+model)
 	lines = append(lines, fmt.Sprintf("- **Articles Analysed**: %d", articlesCount))
-	lines = append(lines, fmt.Sprintf("- **Generated**: %s", timestamp))
+	lines = append(lines, "- **Generated**: "+timestamp)
 	lines = append(lines, "")
 
 	// Summary
@@ -81,22 +81,22 @@ func (f *Formatter) formatMarkdown(data map[string]any) (string, error) {
 			lines = append(lines, "")
 
 			if source, ok := article["source_feed"].(string); ok && source != "" {
-				lines = append(lines, fmt.Sprintf("**Source**: %s", source))
+				lines = append(lines, "**Source**: "+source)
 			}
 
 			if published, ok := article["published"]; ok {
 				switch pub := published.(type) {
 				case time.Time:
 					if !pub.IsZero() {
-						lines = append(lines, fmt.Sprintf("**Published**: %s", pub.Format("2006-01-02 15:04")))
+						lines = append(lines, "**Published**: "+pub.Format("2006-01-02 15:04"))
 					}
 				case string:
-					lines = append(lines, fmt.Sprintf("**Published**: %s", pub))
+					lines = append(lines, "**Published**: "+pub)
 				}
 			}
 
 			if author, ok := article["author"].(string); ok && author != "" {
-				lines = append(lines, fmt.Sprintf("**Author**: %s", author))
+				lines = append(lines, "**Author**: "+author)
 			}
 
 			if link, ok := article["link"].(string); ok && link != "" {
@@ -129,10 +129,10 @@ func (f *Formatter) formatText(data map[string]any) (string, error) {
 	articlesCount := getInt(data, "articles_count", 0)
 	timestamp := getString(data, "timestamp", time.Now().Format(time.RFC3339))
 
-	lines = append(lines, fmt.Sprintf("Prompt: %s", prompt))
-	lines = append(lines, fmt.Sprintf("Model: %s", model))
+	lines = append(lines, "Prompt: "+prompt)
+	lines = append(lines, "Model: "+model)
 	lines = append(lines, fmt.Sprintf("Articles Analysed: %d", articlesCount))
-	lines = append(lines, fmt.Sprintf("Generated: %s", timestamp))
+	lines = append(lines, "Generated: "+timestamp)
 	lines = append(lines, "")
 
 	// Summary
@@ -154,26 +154,26 @@ func (f *Formatter) formatText(data map[string]any) (string, error) {
 			lines = append(lines, fmt.Sprintf("Title: %s", article["title"]))
 
 			if source, ok := article["source_feed"].(string); ok && source != "" {
-				lines = append(lines, fmt.Sprintf("Source: %s", source))
+				lines = append(lines, "Source: "+source)
 			}
 
 			if published, ok := article["published"]; ok {
 				switch pub := published.(type) {
 				case time.Time:
 					if !pub.IsZero() {
-						lines = append(lines, fmt.Sprintf("Published: %s", pub.Format("2006-01-02 15:04")))
+						lines = append(lines, "Published: "+pub.Format("2006-01-02 15:04"))
 					}
 				case string:
-					lines = append(lines, fmt.Sprintf("Published: %s", pub))
+					lines = append(lines, "Published: "+pub)
 				}
 			}
 
 			if author, ok := article["author"].(string); ok && author != "" {
-				lines = append(lines, fmt.Sprintf("Author: %s", author))
+				lines = append(lines, "Author: "+author)
 			}
 
 			if link, ok := article["link"].(string); ok && link != "" {
-				lines = append(lines, fmt.Sprintf("Link: %s", link))
+				lines = append(lines, "Link: "+link)
 			}
 
 			// Show preview of content
@@ -182,7 +182,7 @@ func (f *Formatter) formatText(data map[string]any) (string, error) {
 				if len(preview) > 200 {
 					preview = preview[:200] + "..."
 				}
-				lines = append(lines, fmt.Sprintf("Preview: %s", preview))
+				lines = append(lines, "Preview: "+preview)
 			}
 
 			lines = append(lines, "")

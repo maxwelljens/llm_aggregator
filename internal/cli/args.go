@@ -52,12 +52,12 @@ type Args struct {
 }
 
 // Version returns the version string.
-func (Args) Version() string {
+func (a *Args) Version() string {
 	return fmt.Sprintf("llm_aggregator v%s (built %s)", Version, BuildDate)
 }
 
 // Description returns the program description.
-func (Args) Description() string {
+func (a *Args) Description() string {
 	return "LLM Aggregator - Aggregate RSS feeds and summarise with LLM API"
 }
 

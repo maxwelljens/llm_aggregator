@@ -19,6 +19,19 @@ go test ./internal/aggregator/...
 go test ./... -cover
 ```
 
+## Linting
+
+The project uses [golangci-lint](https://golangci-lint.run/) for static analysis.
+Configuration is in `.golangci.yml`.
+
+```bash
+# Run the linter
+golangci-lint run
+
+# Auto-fix formatting issues
+gofmt -w .
+```
+
 ## Test packages
 
 ### `internal/cli`: CLI parsing

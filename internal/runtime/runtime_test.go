@@ -10,25 +10,6 @@ import (
 	"llm_aggregator/internal/progress"
 )
 
-const testRSSFeed = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-  <channel>
-    <title>File Feed</title>
-    <link>https://example.com/feed</link>
-    <description>A test RSS feed</description>
-    <item>
-      <title>File Article One</title>
-      <link>https://example.com/file1</link>
-      <description>Content from file feed.</description>
-    </item>
-    <item>
-      <title>File Article Two</title>
-      <link>https://example.com/file2</link>
-      <description>More content from file feed.</description>
-    </item>
-  </channel>
-</rss>`
-
 const testAtomFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Stdin Feed</title>
@@ -131,7 +112,7 @@ func TestExecuteBranchCollated(t *testing.T) {
 	}
 
 	// Collate: stdin first, then feeds file
-	articles := append(stdinArticles, fileArticles...)
+	articles := append(stdinArticles, fileArticles...) //nolint:gocritic
 
 	// Should have 1 stdin article + 0 file articles (URL unreachable)
 	if len(articles) != 1 {

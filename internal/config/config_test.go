@@ -63,11 +63,7 @@ func TestIsZero(t *testing.T) {
 func TestViperToRuntimePrecedence(t *testing.T) {
 	// Create temporary directory for test
 	tempDir := t.TempDir()
-	oldEnv := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
-	defer func() {
-		os.Setenv("XDG_CONFIG_HOME", oldEnv)
-	}()
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
 
 	// Save a config file with known values (manually write TOML since DefaultConfig/Save don't exist)
 	configuredModel := "config-file-model"
@@ -82,7 +78,7 @@ max_tokens = %d
 `, configuredModel, configuredBaseURL, configuredTemperature, configuredMaxTokens)
 
 	configPath := filepath.Join(tempDir, "llm_aggregator", "config.toml")
-	os.MkdirAll(filepath.Dir(configPath), 0755)
+	_ = os.MkdirAll(filepath.Dir(configPath), 0755) //nolint:errcheck
 	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -90,10 +86,10 @@ max_tokens = %d
 	// Test 1: Config file should override defaults
 	t.Run("config file overrides defaults", func(t *testing.T) {
 		// Clear any env vars
-		os.Unsetenv("LLM_AGGREGATOR_MODEL")
-		os.Unsetenv("LLM_AGGREGATOR_BASE_URL")
-		os.Unsetenv("LLM_AGGREGATOR_TEMPERATURE")
-		os.Unsetenv("LLM_AGGREGATOR_MAX_TOKENS")
+		_ = os.Unsetenv("LLM_AGGREGATOR_MODEL")
+		_ = os.Unsetenv("LLM_AGGREGATOR_BASE_URL")
+		_ = os.Unsetenv("LLM_AGGREGATOR_TEMPERATURE")
+		_ = os.Unsetenv("LLM_AGGREGATOR_MAX_TOKENS")
 
 		v := GetViper()
 		rt := ViperToRuntime(v, "/tmp/feeds.txt", "test prompt")
@@ -110,11 +106,11 @@ max_tokens = %d
 	t.Run("environment variables override config file", func(t *testing.T) {
 		envModel := "env-override-model"
 		envBaseURL := "https://env-override.example.com"
-		os.Setenv("LLM_AGGREGATOR_MODEL", envModel)
-		os.Setenv("LLM_AGGREGATOR_BASE_URL", envBaseURL)
+		t.Setenv("LLM_AGGREGATOR_MODEL", envModel)
+		t.Setenv("LLM_AGGREGATOR_BASE_URL", envBaseURL)
 		defer func() {
-			os.Unsetenv("LLM_AGGREGATOR_MODEL")
-			os.Unsetenv("LLM_AGGREGATOR_BASE_URL")
+			_ = os.Unsetenv("LLM_AGGREGATOR_MODEL")
+			_ = os.Unsetenv("LLM_AGGREGATOR_BASE_URL")
 		}()
 
 		v := GetViper()
@@ -137,11 +133,11 @@ max_tokens = %d
 		v.SetDefault("temperature", 0.7)
 
 		// Set env vars that should be overridden
-		os.Setenv("LLM_AGGREGATOR_MODEL", "env-should-be-overridden")
-		os.Setenv("LLM_AGGREGATOR_BASE_URL", "https://env-should-be-overridden.example.com")
+		t.Setenv("LLM_AGGREGATOR_MODEL", "env-should-be-overridden")
+		t.Setenv("LLM_AGGREGATOR_BASE_URL", "https://env-should-be-overridden.example.com")
 		defer func() {
-			os.Unsetenv("LLM_AGGREGATOR_MODEL")
-			os.Unsetenv("LLM_AGGREGATOR_BASE_URL")
+			_ = os.Unsetenv("LLM_AGGREGATOR_MODEL")
+			_ = os.Unsetenv("LLM_AGGREGATOR_BASE_URL")
 		}()
 
 		// Simulate CLI args binding - using pointer types like the actual Args struct
@@ -302,30 +298,12 @@ func intPtr(i int) *int { return &i }
 func floatPtr(f float64) *float64 { return &f }
 func boolPtr(b bool) *bool { return &b }
 
-// Helper function to check if string contains substring
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(s[0:len(substr)] == substr || contains(s[1:], substr)))
-}
-
-// Helper function to check if path has suffix
-func hasSuffix(path, suffix string) bool {
-	if len(path) < len(suffix) {
-		return false
-	}
-	return path[len(path)-len(suffix):] == suffix
-}
-
 // TestConfigParsingAlwaysPasses ensures that parsing of options always passes.
 // This tests the integration between CLI args, config loading, and Viper.
 func TestConfigParsingAlwaysPasses(t *testing.T) {
 	// Create temporary directory for test
 	tempDir := t.TempDir()
-	oldEnv := os.Getenv("XDG_CONFIG_HOME")
-	os.Setenv("XDG_CONFIG_HOME", tempDir)
-	defer func() {
-		os.Setenv("XDG_CONFIG_HOME", oldEnv)
-	}()
+	t.Setenv("XDG_CONFIG_HOME", tempDir)
 
 	// Create a test feeds file
 	feedsFile := tempDir + "/feeds.txt"
@@ -406,10 +384,7 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 			args := []string{"llm_aggregator"}
 			for k, v := range tt.cliArgs {
 				// Remove leading dashes for go-arg compatibility
-				key := k
-				if strings.HasPrefix(key, "--") {
-					key = key[2:]
-				}
+				key := strings.TrimPrefix(k, "--")
 				args = append(args, "--"+key)
 				if v != "" {
 					args = append(args, v)

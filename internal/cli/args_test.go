@@ -19,11 +19,11 @@ func TestFeedsFileParsing(t *testing.T) {
 			wantErr:   false,
 			setupFunc: func() {
 				// Create a temporary feeds file
-				f, _ := os.Create("/tmp/feeds.txt")
-				f.Close()
+				f, _ := os.Create("/tmp/feeds.txt") //nolint:errcheck
+				_ = f.Close()                      //nolint:errcheck
 			},
 			cleanupFunc: func() {
-				os.Remove("/tmp/feeds.txt")
+				_ = os.Remove("/tmp/feeds.txt") //nolint:errcheck
 			},
 		},
 		{
@@ -177,10 +177,10 @@ func TestAPIKeyParsing(t *testing.T) {
 			wantAPIKey: nil, // CLI parsing doesn't read env vars directly
 			wantErr:    false,
 			setupFunc: func() {
-				os.Setenv("LLM_AGGREGATOR_API_KEY", "sk-env-key-67890")
+				t.Setenv("LLM_AGGREGATOR_API_KEY", "sk-env-key-67890")
 			},
 			cleanupFunc: func() {
-				os.Unsetenv("LLM_AGGREGATOR_API_KEY")
+				_ = os.Unsetenv("LLM_AGGREGATOR_API_KEY") //nolint:errcheck
 			},
 		},
 		{
@@ -190,10 +190,10 @@ func TestAPIKeyParsing(t *testing.T) {
 			wantAPIKey: strPtr("sk-explicit-key"),
 			wantErr:    false,
 			setupFunc: func() {
-				os.Setenv("LLM_AGGREGATOR_API_KEY", "sk-env-key-should-be-ignored")
+				t.Setenv("LLM_AGGREGATOR_API_KEY", "sk-env-key-should-be-ignored")
 			},
 			cleanupFunc: func() {
-				os.Unsetenv("LLM_AGGREGATOR_API_KEY")
+				_ = os.Unsetenv("LLM_AGGREGATOR_API_KEY") //nolint:errcheck
 			},
 		},
 	}
@@ -281,10 +281,10 @@ func TestModelParsing(t *testing.T) {
 			wantModel: nil, // CLI parsing doesn't read env vars directly
 			wantErr:   false,
 			setupFunc: func() {
-				os.Setenv("LLM_AGGREGATOR_MODEL", "custom-model-from-env")
+				t.Setenv("LLM_AGGREGATOR_MODEL", "custom-model-from-env")
 			},
 			cleanupFunc: func() {
-				os.Unsetenv("LLM_AGGREGATOR_MODEL")
+				_ = os.Unsetenv("LLM_AGGREGATOR_MODEL") //nolint:errcheck
 			},
 		},
 		{
@@ -293,10 +293,10 @@ func TestModelParsing(t *testing.T) {
 			wantModel: strPtr("explicit-model"),
 			wantErr:   false,
 			setupFunc: func() {
-				os.Setenv("LLM_AGGREGATOR_MODEL", "env-model-should-be-ignored")
+				t.Setenv("LLM_AGGREGATOR_MODEL", "env-model-should-be-ignored")
 			},
 			cleanupFunc: func() {
-				os.Unsetenv("LLM_AGGREGATOR_MODEL")
+				_ = os.Unsetenv("LLM_AGGREGATOR_MODEL") //nolint:errcheck
 			},
 		},
 	}

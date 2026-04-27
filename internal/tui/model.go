@@ -26,11 +26,9 @@ const (
 
 var (
 	colorSubtle        = lipgloss.Color("7")   // Gray (dim text)
-	colorHighlight     = lipgloss.Color("13")  // Magenta (status)
-	colorSuccess       = lipgloss.Color("2")   // Green (completion)
-	colorError         = lipgloss.Color("1")   // Red (errors)
-	colorGradientStart = lipgloss.Color("205") // Pink
-	colorGradientEnd   = lipgloss.Color("226") // Yellow
+	colorHighlight = lipgloss.Color("13") // Magenta (status)
+	colorSuccess   = lipgloss.Color("2")  // Green (completion)
+	colorError     = lipgloss.Color("1")  // Red (errors)
 
 	titleStyle = lipgloss.NewStyle().
 			MarginLeft(2).
@@ -331,21 +329,22 @@ func (m *Model) View() string {
 
 	// If done, show 100% progress.
 	var progressPercent float64
-	if m.done && m.errorMsg == "" {
+	switch {
+	case m.done && m.errorMsg == "":
 		progressPercent = 1.0
-	} else if m.waiting {
+	case m.waiting:
 		// Fake progress: 85% base + up to 15% over 60 seconds
 		elapsed := time.Since(m.waitingStart).Seconds()
 		waitFraction := min(elapsed/60.0, 1.0)
 		progressPercent = 0.85 + (waitFraction * 0.15)
-	} else if m.tokenCount > 0 {
+	case m.tokenCount > 0:
 		// Use token-based progress once articles are ready
 		// Tokens sent to LLM as a fraction of model's max token window (8k context assumed)
 		progressPercent = float64(m.tokenUsed) / float64(m.tokenCount)
 		if progressPercent > 1.0 {
 			progressPercent = 1.0
 		}
-	} else {
+	default:
 		progressPercent = float64(m.currentStep) / float64(m.totalSteps)
 	}
 
@@ -357,11 +356,12 @@ func (m *Model) View() string {
 	sb.WriteString(statusStyle.Render("Status: "))
 
 	// Replace spinner with a checkmark when done.
-	if m.done && m.errorMsg == "" {
+	switch {
+	case m.done && m.errorMsg == "":
 		sb.WriteString(lipgloss.NewStyle().Foreground(colorSuccess).Render("✓"))
-	} else if m.done && m.errorMsg != "" {
+	case m.done && m.errorMsg != "":
 		sb.WriteString(lipgloss.NewStyle().Foreground(colorError).Render("✗"))
-	} else {
+	default:
 		sb.WriteString(m.spinner.View())
 	}
 
@@ -424,7 +424,7 @@ func (m *Model) View() string {
 	return sb.String()
 }
 
-// Messages for updating the TUI
+// StepMsg represents a progress update message.
 type StepMsg struct {
 	Step           int
 	Status         string

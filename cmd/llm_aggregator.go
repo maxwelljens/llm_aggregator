@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"llm_aggregator/internal/aggregator"
@@ -126,7 +127,7 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler)
 		// Signal arrived during execution — output partial result if available
 		sh.Stop()
 		if rt.Summary != "" {
-			rt.WriteOutput(os.Stdout)
+			_ = rt.WriteOutput(os.Stdout) //nolint:errcheck // stdout write failure is unrecoverable
 		}
 		fmt.Fprintln(os.Stderr, style.Errorf("interrupted by signal"))
 		os.Exit(130)
@@ -177,9 +178,9 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	// Print configuration summary
 	fmt.Println()
 	fmt.Println(style.Label("Configuration:"))
-	fmt.Printf("  Max articles per feed: %s\n", style.Value(fmt.Sprintf("%d", rt.MaxArticlesPerFeed)))
-	fmt.Printf("  Max days old: %s\n", style.Value(fmt.Sprintf("%d", rt.MaxDaysOld)))
-	fmt.Printf("  Max total articles: %s\n", style.Value(fmt.Sprintf("%d", rt.MaxTotalArticles)))
+	fmt.Printf("  Max articles per feed: %s\n", style.Value(strconv.Itoa(rt.MaxArticlesPerFeed)))
+	fmt.Printf("  Max days old: %s\n", style.Value(strconv.Itoa(rt.MaxDaysOld)))
+	fmt.Printf("  Max total articles: %s\n", style.Value(strconv.Itoa(rt.MaxTotalArticles)))
 	fmt.Printf("  Include keywords: %s\n", style.Value(fmt.Sprintf("%v", rt.IncludeKeywords)))
 	fmt.Printf("  Exclude keywords: %s\n", style.Value(fmt.Sprintf("%v", rt.ExcludeKeywords)))
 	fmt.Printf("  Output format: %s\n", style.Value(rt.Output))
@@ -200,7 +201,8 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	var articles []*aggregator.Article
 	var err error
 
-	if rt.Stdin && rt.FeedsFile != "" {
+	switch {
+	case rt.Stdin && rt.FeedsFile != "":
 		var stdinArticles []*aggregator.Article
 		var fileArticles []*aggregator.Article
 
@@ -212,13 +214,13 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds file: %v", err))
 			os.Exit(1)
 		}
-		articles = append(stdinArticles, fileArticles...)
-	} else if rt.Stdin {
+		articles = append(stdinArticles, fileArticles...) //nolint:gocritic
+	case rt.Stdin:
 		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
 			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse stdin feed: %v", err))
 			os.Exit(1)
 		}
-	} else {
+	default:
 		if articles, err = feedAgg.ParseFeedsFromFile(rt.FeedsFile); err != nil {
 			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds: %v", err))
 			os.Exit(1)
@@ -248,10 +250,10 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 
 	fmt.Println()
 	fmt.Println(style.Label("Article statistics:"))
-	fmt.Printf("  Total fetched: %s\n", style.Value(fmt.Sprintf("%d", totalArticles)))
-	fmt.Printf("  After filtering: %s\n", style.Value(fmt.Sprintf("%d", len(processedArticles))))
+	fmt.Printf("  Total fetched: %s\n", style.Value(strconv.Itoa(totalArticles)))
+	fmt.Printf("  After filtering: %s\n", style.Value(strconv.Itoa(len(processedArticles))))
 	if filteredCount > 0 {
-		fmt.Printf("  Filtered out: %s\n", style.Value(fmt.Sprintf("%d", filteredCount)))
+		fmt.Printf("  Filtered out: %s\n", style.Value(strconv.Itoa(filteredCount)))
 	}
 
 	// Group articles by source for summary
@@ -266,7 +268,7 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 		fmt.Println()
 		fmt.Println(style.Label("Articles by source:"))
 		for source, count := range sourceCounts {
-			fmt.Printf("  %s: %s\n", style.Filepath(source), style.Value(fmt.Sprintf("%d", count)))
+			fmt.Printf("  %s: %s\n", style.Filepath(source), style.Value(strconv.Itoa(count)))
 		}
 	}
 
@@ -274,7 +276,7 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	estimatedTokens := contentProc.EstimateTokenCount(processedArticles, rt.Model)
 	fmt.Println()
 	fmt.Printf("Estimated token count: %s (for model: %s)\n", style.Value(fmt.Sprintf("~%d", estimatedTokens)), style.Value(rt.Model))
-	fmt.Printf("Max tokens for response: %s\n", style.Value(fmt.Sprintf("%d", rt.MaxTokens)))
+	fmt.Printf("Max tokens for response: %s\n", style.Value(strconv.Itoa(rt.MaxTokens)))
 
 	// Prompt preview
 	fmt.Println()

@@ -2,6 +2,7 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -37,7 +38,7 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature floa
 		apiKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
 	}
 	if apiKey == "" || strings.TrimSpace(apiKey) == "" {
-		return nil, fmt.Errorf(
+		return nil, errors.New(
 			"LLM API key is required. " +
 				"Set LLM_AGGREGATOR_API_KEY environment variable or pass apiKey parameter",
 		)
@@ -121,28 +122,28 @@ func (dc *LLMClient) prepareContext(articles []map[string]any) string {
 		contextParts = append(contextParts, fmt.Sprintf("Title: %s", article["title"]))
 
 		if source, ok := article["source_feed"].(string); ok && source != "" {
-			contextParts = append(contextParts, fmt.Sprintf("Source: %s", source))
+			contextParts = append(contextParts, "Source: "+source)
 		}
 
 		if published, ok := article["published"]; ok {
 			switch pub := published.(type) {
 			case time.Time:
 				if !pub.IsZero() {
-					contextParts = append(contextParts, fmt.Sprintf("Published: %s", pub.Format(time.RFC3339)))
+					contextParts = append(contextParts, "Published: "+pub.Format(time.RFC3339))
 				}
 			case string:
-				contextParts = append(contextParts, fmt.Sprintf("Published: %s", pub))
+				contextParts = append(contextParts, "Published: "+pub)
 			default:
 				contextParts = append(contextParts, fmt.Sprintf("Published: %v", pub))
 			}
 		}
 
 		if author, ok := article["author"].(string); ok && author != "" {
-			contextParts = append(contextParts, fmt.Sprintf("Author: %s", author))
+			contextParts = append(contextParts, "Author: "+author)
 		}
 
 		if link, ok := article["link"].(string); ok && link != "" {
-			contextParts = append(contextParts, fmt.Sprintf("Link: %s", link))
+			contextParts = append(contextParts, "Link: "+link)
 		}
 
 		if content, ok := article["content"].(string); ok && content != "" {
@@ -151,7 +152,7 @@ func (dc *LLMClient) prepareContext(articles []map[string]any) string {
 			if len(content) > maxContentLen {
 				content = content[:maxContentLen] + "... [truncated]"
 			}
-			contextParts = append(contextParts, fmt.Sprintf("Content: %s", content))
+			contextParts = append(contextParts, "Content: "+content)
 		}
 
 		contextParts = append(contextParts, "") // Empty line between articles
@@ -209,22 +210,23 @@ func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.
 			dc.logger.Logf("API error: %s", errStr)
 		}
 
-		if strings.Contains(errStr, "401") {
-			return "", nil, fmt.Errorf("invalid API key. Please check your LLM API key")
-		} else if strings.Contains(errStr, "429") {
-			return "", nil, fmt.Errorf("rate limit exceeded. Please try again later")
-		} else if strings.Contains(errStr, "500") {
-			return "", nil, fmt.Errorf("LLM API server error. Please try again later")
-		} else if strings.Contains(errStr, "404") {
-			return "", nil, fmt.Errorf("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
-		} else if strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "context canceled") {
+		switch {
+		case strings.Contains(errStr, "401"):
+			return "", nil, errors.New("invalid API key. Please check your LLM API key")
+		case strings.Contains(errStr, "429"):
+			return "", nil, errors.New("rate limit exceeded. Please try again later")
+		case strings.Contains(errStr, "500"):
+			return "", nil, errors.New("LLM API server error. Please try again later")
+		case strings.Contains(errStr, "404"):
+			return "", nil, errors.New("API endpoint not found. Please check the base URL and endpoint. OpenAI API uses /chat/completions")
+		case strings.Contains(errStr, "context deadline exceeded") || strings.Contains(errStr, "context canceled"):
 			return "", nil, fmt.Errorf("LLM request timed out after %d seconds", dc.llmTimeout)
 		}
 		return "", nil, fmt.Errorf("failed to connect to LLM API: %w", err)
 	}
 
 	if len(response.Choices) == 0 {
-		return "", nil, fmt.Errorf("no response choices returned from API")
+		return "", nil, errors.New("no response choices returned from API")
 	}
 
 	outputText := response.Choices[0].Message.Content

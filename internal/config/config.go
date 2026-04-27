@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -72,11 +73,10 @@ func GetViper() *viper.Viper {
 		// Try to read config file
 		if err := v.ReadInConfig(); err != nil {
 			// If config file doesn't exist, that's OK - we'll use defaults + env vars
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			var notFoundError viper.ConfigFileNotFoundError
+			if !errors.As(err, &notFoundError) {
 				fmt.Fprintln(os.Stderr, style.Warningf("error reading config file: %v", err))
-			} else {
 			}
-		} else {
 		}
 	}
 	return v
@@ -210,6 +210,7 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 }
 
 // bindEnvVars binds environment variables to viper keys.
+//nolint:errcheck // viper.BindEnv always returns nil in practice
 func bindEnvVars(v *viper.Viper) {
 	// Feed aggregation options
 	v.BindEnv("max_articles_per_feed", "LLM_AGGREGATOR_MAX_ARTICLES_PER_FEED")
