@@ -52,7 +52,7 @@ func NoColor() bool {
 // Note: ANSI doesn't have orange, so we use red with bold styling.
 func Warning(text string) string {
 	if NoColor() {
-		return lipgloss.NewStyle().Bold(true).Render("WARNING: " + text)
+		return "WARNING: " + text
 	}
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(Red)).
@@ -68,7 +68,7 @@ func Warningf(format string, args ...any) string {
 // Error returns a red and bold error message.
 func Error(text string) string {
 	if NoColor() {
-		return lipgloss.NewStyle().Bold(true).Render("ERROR: " + text)
+		return "ERROR: " + text
 	}
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(Red)).
@@ -84,7 +84,7 @@ func Errorf(format string, args ...any) string {
 // Success returns a green success message.
 func Success(text string) string {
 	if NoColor() {
-		return lipgloss.NewStyle().Bold(true).Render("✓ " + text)
+		return "✓ " + text
 	}
 	return lipgloss.NewStyle().
 		Foreground(lipgloss.Color(Green)).
@@ -102,17 +102,6 @@ func Filepath(filepath string) string {
 
 // FilepathStyled returns a lipgloss style for filepaths that can be applied to custom text.
 var FilepathStyled = lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan))
-
-// URL returns a styled URL in blue with underline.
-func URL(url string) string {
-	if NoColor() {
-		return lipgloss.NewStyle().Underline(true).Render(url)
-	}
-	return lipgloss.NewStyle().
-		Foreground(lipgloss.Color(Blue)).
-		Underline(true).
-		Render(url)
-}
 
 // URLStyled returns a lipgloss style for URLs that can be applied to custom text.
 var URLStyled = lipgloss.NewStyle().Foreground(lipgloss.Color(Blue)).Underline(true)

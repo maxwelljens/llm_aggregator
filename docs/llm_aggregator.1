@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator
-.TH LLM_AGGREGATOR 1 "26 April 2026" "0.12.0" "User Commands"
+.TH LLM_AGGREGATOR 1 "27 April 2026" "0.14.0" "User Commands"
 .SH NAME
 llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
 .SH SYNOPSIS
@@ -63,6 +63,8 @@ Read a single RSS/Atom feed from stdin. Can be combined with
 .B \-f\fR/
 .B \-\-feeds\-file
 to collate articles from both sources.
+Environment variable:
+.B LLM_AGGREGATOR_STDIN
 .TP
 .B \-f\fR,\fB -f \fIFILE\fR
 Path to a file containing RSS feed URLs, one per line.
@@ -242,6 +244,40 @@ Include articles in JSON output (true/false)
 .TP
 .B LLM_AGGREGATOR_PLAIN
 Plain output without metadata (true/false)
+.TP
+.B LLM_AGGREGATOR_STDIN
+Read a single RSS/Atom feed from stdin (true/false)
+.SH SIGNAL HANDLING
+.B llm_aggregator
+handles
+.BR SIGINT ,
+.BR SIGTERM ,
+and
+.BR SIGHUP
+for graceful shutdown. When a signal arrives during execution:
+.RS 4
+.TP 2
+\(bu
+In-flight LLM API requests are cancelled via context propagation
+.TP 2
+\(bu
+Any partial summary already received is written to stdout before exit
+.TP 2
+\(bu
+The process exits with status 130 (128 + signal number)
+.RE
+.PP
+This means:
+.RS 4
+.TP 2
+\(bu
+.B Ctrl+C
+.RB ( SIGINT )
+interrupts the current run cleanly, preserving any partial output
+.TP 2
+\(bu
+Partial output is still usable even if the LLM response was incomplete
+.RE
 .SH CONFIGURATION FILE
 Configuration can also be provided via a TOML file at:
 .PP
@@ -404,6 +440,10 @@ Success
 .TP
 .B 1
 Error (invalid arguments, missing API key, API error, etc.)
+.TP
+.B >128
+Interrupted by signal (SIGINT, SIGTERM, or SIGHUP). Any partial LLM
+response received before the signal arrived is written to stdout.
 .SH FILES
 .TP
 .B ~/.config/llm_aggregator/config.toml

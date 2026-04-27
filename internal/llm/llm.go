@@ -86,10 +86,12 @@ type TokenUsage struct {
 // articles: List of article maps
 // userPrompt: User's query/summarisation request
 // systemPrompt: Optional system prompt (defaults to helpful assistant)
+// ctx: Context for cancellation. If cancelled, the LLM API call aborts.
 func (dc *LLMClient) SummariseArticles(
 	articles []map[string]any,
 	userPrompt string,
 	systemPrompt string,
+	ctx context.Context,
 ) (string, *TokenUsage, error) {
 	if len(articles) == 0 {
 		return "No articles to summarise.", nil, nil
@@ -102,7 +104,7 @@ func (dc *LLMClient) SummariseArticles(
 	messages := dc.createMessages(context, userPrompt, systemPrompt)
 
 	// Call API with messages
-	return dc.callAPIWithMessages(messages)
+	return dc.callAPIWithMessages(ctx, messages)
 }
 
 func (dc *LLMClient) prepareContext(articles []map[string]any) string {
@@ -180,9 +182,7 @@ If relevant, note any patterns, contradictions, or notable developments.`,
 	return messages
 }
 
-func (dc *LLMClient) callAPIWithMessages(messages []openai.ChatCompletionMessageParamUnion) (string, *TokenUsage, error) {
-	ctx := context.Background()
-
+func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.ChatCompletionMessageParamUnion) (string, *TokenUsage, error) {
 	if dc.logger != nil {
 		dc.logger.Logf("Calling LLM API with model: %s", dc.model)
 		dc.logger.Logf("Max tokens: %d, Temperature: %.2f", dc.maxTokens, dc.temperature)

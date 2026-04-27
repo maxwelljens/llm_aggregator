@@ -39,9 +39,10 @@ type Runtime struct {
 	Verbose            bool
 
 	// State
-	Articles []map[string]any
-	Summary  string
-	Error    error
+	Articles    []map[string]any
+	Summary     string
+	Error       error
+	Interrupted bool // Set to true when a termination signal is received
 
 	// Logger for verbose output
 	Progress progress.Progress
@@ -153,6 +154,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		processedArticles,
 		r.Prompt,
 		r.SystemPrompt,
+		ctx,
 	)
 	if err != nil {
 		return fmt.Errorf("error getting summary from LLM: %w", err)
@@ -165,7 +167,10 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	return nil
 }
 
-// WriteOutput writes the formatted output to the specified writer
+// WasInterrupted returns true if a termination signal was received during execution.
+func (r *Runtime) WasInterrupted() bool {
+	return r.Interrupted
+}
 func (r *Runtime) WriteOutput(writer io.Writer) error {
 	if r.Plain {
 		if _, err := fmt.Fprint(writer, r.Summary); err != nil {

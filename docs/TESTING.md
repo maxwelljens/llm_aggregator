@@ -110,6 +110,10 @@ Tests for feed parsing, article extraction, and filtering.
 | `TestParseFeedsFromFile` | Verifies parsing feeds file with comments |
 | `TestParseFeedsFromFileEmpty` | Tests empty and comment-only files |
 | `TestParseFeedsFromFileNotFound` | Verifies error handling for missing files |
+| `TestParseFeedFromReader` | Tests parsing RSS XML from any `io.Reader` (used by stdin) |
+| `TestParseFeedFromReaderAtom` | Tests parsing Atom XML from `io.Reader` |
+| `TestParseFeedFromReaderMalformed` | Tests error handling for malformed XML |
+| `TestParseFeedFromStdin` | Tests reading a single RSS/Atom feed from stdin via `os.Pipe()` |
 | `TestArticleAgeFiltering` | Tests date-based article filtering |
 | `TestArticleSorting` | Tests date sorting (ascending/descending) |
 | `TestArticleLinkExtraction` | Verifies link extraction |
@@ -272,6 +276,50 @@ Keyword matching is case-insensitive.
 
 ---
 
+### `internal/runtime`: Execution pipeline
+
+Tests for the full pipeline execution flow.
+
+| Test | Description |
+|------|-------------|
+| `TestExecuteBranchStdinOnly` | Tests `Execute()` with stdin feed only |
+| `TestExecuteBranchFeedsFileOnly` | Tests `Execute()` with feeds file only |
+| `TestExecuteBranchCollated` | Tests `Execute()` with both stdin and feeds file |
+| `TestExecuteBranchNoSource` | Tests `Execute()` returns error when no source specified |
+
+**Branch logic in `Execute()`:**
+```
+if Stdin && FeedsFile != "" → collate stdin then file
+else if Stdin           → stdin only
+else if FeedsFile != "" → file only
+else                   → error: no feed source
+```
+
+---
+
+### `internal/signals`: Signal handling
+
+Tests for graceful shutdown on `SIGINT`, `SIGTERM`, and `SIGHUP`.
+
+| Test | Description |
+|------|-------------|
+| `TestSignalHandler_Watch` | Tests `Watch()` starts and `Stop()` cleans up |
+| `TestSignalHandler_IsExiting` | Tests `IsExiting()` is false after clean `Stop()` |
+| `TestSignalHandler_Stop_Idempotent` | Tests `Stop()` is safe to call multiple times |
+
+**Signal handling flow:**
+```
+SIGINT/SIGTERM/SIGHUP
+  → signal.Notify intercepts (no default exit)
+  → sh.notify channel receives signal
+  → Watch() goroutine: sh.exiting.Store(true)
+  → polling goroutine: cancel() called
+  → HTTP request aborted via context cancellation
+  → rt.Execute returns → partial output → exit 130
+```
+
+---
+
 ## Test utilities
 
 ### Helper functions
@@ -303,11 +351,12 @@ Current coverage status:
 |---------|----------|-------|
 | `cli` | 95% | All argument types and help formatting tested |
 | `config` | 82% | Most config operations tested |
-| `aggregator` | 33% | Network calls require advanced mocks |
+| `aggregator` | 57% | Full parsing pipeline tested; network calls require advanced mocks |
 | `output` | 93% | All formatters tested |
 | `processor` | 76% | All filtering/sorting tested |
+| `runtime` | 0% | Integration-only; context propagation not exercised by unit tests |
+| `signals` | 89% | Handler lifecycle and concurrency tested |
 | `llm` | 0% | Requires advanced API mocking |
-| `runtime` | 0% | Integration tests only |
 | `tui` | 0% | Requires terminal interaction |
 | `progress` | 0% | Interface only |
 | `tokeniser` | 0% | Depends on library internals |

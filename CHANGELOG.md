@@ -6,6 +6,19 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-04-27
+
+### Added
+
+- **Signal handling for graceful shutdown**: `llm_aggregator` now handles
+  `SIGINT`, `SIGTERM`, and `SIGHUP`. When a signal arrives during execution:
+  - The context is cancelled, stopping in-progress operations as soon as possible
+  - Any partial LLM summary already received is written to stdout (or the output file)
+  - The process exits with code 130 (128 + signal number) instead of a generic error
+  - In TUI mode, `q`/`Ctrl+C` also triggers clean shutdown via `RequestExit()`
+- **`Runtime.Interrupted` and `Runtime.WasInterrupted()`**: New state field and
+  query method allow callers to detect signal-caused termination.
+
 ## [0.13.0] - 2026-04-26
 
 ### Added

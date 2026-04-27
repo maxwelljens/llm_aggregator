@@ -12,6 +12,7 @@ import (
 	"llm_aggregator/internal/processor"
 	"llm_aggregator/internal/progress"
 	"llm_aggregator/internal/runtime"
+	"llm_aggregator/internal/signals"
 	"llm_aggregator/internal/style"
 	"llm_aggregator/internal/tui"
 )
@@ -32,6 +33,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set up signal handling before any blocking call.
+	// SIGINT, SIGTERM, and SIGHUP are all treated the same — clean shutdown.
+	sh := signals.New()
+	sh.Watch()
+
+
 	// Get viper instance with config file + environment variables + defaults
 	v := config.GetViper()
 
@@ -41,23 +48,27 @@ func main() {
 	// Create runtime directly from viper configuration
 	rt := config.ViperToRuntime(v, args.FeedsFile, args.Prompt)
 
+
 	// Run dry-run mode if requested (validates config, shows statistics, no LLM calls)
 	if args.DryRun {
+		sh.Stop()
 		runDryRun(rt, args.Verbose)
 		os.Exit(0)
 	}
 
 	// Validate API key (required for actual execution)
 	if v.GetString("api_key") == "" {
+		sh.Stop()
 		fmt.Fprintln(os.Stderr, style.Errorf("OpenAI-compatible API key is required. Set via --api-key, %s environment variable, or config file.", "LLM_AGGREGATOR_API_KEY"))
 		os.Exit(1)
 	}
 
 	// Run with TUI if requested
 	if args.TUI {
+		sh.Stop()
 		runWithTUI(rt)
 	} else {
-		runWithoutTUI(rt, args.Verbose)
+		runWithoutTUI(rt, args.Verbose, sh)
 	}
 }
 
@@ -82,7 +93,7 @@ func runWithTUI(rt *runtime.Runtime) {
 	}
 }
 
-func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
+func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler) {
 	// Setup logger based on verbose flag and inject it into the runtime
 	if verbose {
 		rt.Progress = progress.NewSimpleLogger(os.Stdout, true)
@@ -91,9 +102,37 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
 		rt.Progress = &progress.NoopLogger{}
 	}
 
+	// Create a context that is cancelled when a signal arrives.
+	// signal.Notify disables default exit behaviour for SIGINT/SIGTERM/SIGHUP,
+	// so the program stays alive long enough to handle them.
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Monitor for signals and propagate into context cancellation.
+	// This goroutine lives until the Watch() goroutine exits (signalled via sh).
+	go func() {
+		// Poll IsExiting() — returns true as soon as the signal is received.
+		// No busy-waiting: the select in Watch() unblocks immediately on signal.
+		for {
+			if sh.IsExiting() {
+				cancel()
+				return
+			}
+		}
+	}()
+
 	// Execute the runtime
-	err := rt.Execute(context.Background())
+	err := rt.Execute(ctx)
+	if sh.IsExiting() {
+		// Signal arrived during execution — output partial result if available
+		sh.Stop()
+		if rt.Summary != "" {
+			rt.WriteOutput(os.Stdout)
+		}
+		fmt.Fprintln(os.Stderr, style.Errorf("interrupted by signal"))
+		os.Exit(130)
+	}
 	if err != nil {
+		sh.Stop()
 		fmt.Fprintln(os.Stderr, style.Errorf("execution failed: %v", err))
 		os.Exit(1)
 	}
@@ -110,6 +149,8 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool) {
 			os.Exit(1)
 		}
 	}
+
+	sh.Stop()
 }
 
 func runDryRun(rt *runtime.Runtime, verbose bool) {
