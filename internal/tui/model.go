@@ -159,9 +159,8 @@ func (m *Model) Init() tea.Cmd {
 	return tea.Batch(m.spinner.Tick, m.startProcessing)
 }
 
-// This is now the standard bubbletea command pattern.
-// The bubbletea runtime will execute this function in a goroutine.
-// We no longer need to manage the goroutine or use program.Send().
+// startProcessing is the standard bubbletea command pattern.
+// The runtime executes in a goroutine managed by the bubbletea runtime.
 func (m *Model) startProcessing() tea.Msg {
 	err := m.runtime.Execute(context.Background())
 	return processingDoneMsg{err: err}
@@ -226,7 +225,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent(summaryContent)
 		}
 	case progressMsg:
-		// This message type seems unused, but leaving it in case.
+		// progressMsg drives the progress bar; sent by the runtime via program.Send.
 		progress := float64(msg)
 		if progress >= 1.0 {
 			m.done = true
@@ -235,7 +234,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd := m.progress.SetPercent(float64(progress))
 		return m, cmd
 	case spinner.TickMsg:
-		// MODIFIED: Stop updating the spinner once we're done.
+		// Stop the spinner once processing completes
 		if m.done {
 			return m, nil
 		}

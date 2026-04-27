@@ -15,7 +15,8 @@ import (
 	"llm_aggregator/internal/style"
 )
 
-// Config holds the application configuration loaded from TOML file, environment variables, and CLI arguments.
+// Config holds application configuration sourced from TOML, environment variables, and CLI arguments.
+// See config.GetViper for precedence and singleton behaviour.
 type Config struct {
 	// Feed aggregation options
 	MaxArticlesPerFeed int    `mapstructure:"max_articles_per_feed"`
@@ -45,13 +46,12 @@ type Config struct {
 	Plain           bool   `mapstructure:"plain"`
 }
 
-// GetViper returns the global viper instance with all configuration sources set up.
-// The precedence order is: CLI flags > Environment variables > Config file > Defaults.
+// GetViper returns the global viper instance.
+// Precedence (highest first): CLI flags → environment variables → config file → defaults.
 //
-// NOTE: Viper uses a singleton pattern. Subsequent calls to GetViper() return the SAME
-// instance with all previously set values. This means defaults are only set once,
-// environment vars are bound once, and the config file is read once. Do NOT call this
-// expecting a fresh state — if you need a fresh instance for testing, use viper.New() directly.
+// NOTE: Viper is a singleton. Subsequent calls return the SAME instance with all
+// previously set values. Defaults, env bindings, and config-file reads are idempotent
+// but the instance is NOT reset between calls. Use viper.New() directly for testing.
 func GetViper() *viper.Viper {
 	// Set defaults first (lowest priority)
 	setDefaults()
@@ -117,13 +117,12 @@ func BindCLIArgs(v *viper.Viper, args map[string]any) {
 	}
 }
 
-// isZero checks if a value is the zero value for its type.
+// isZero reports whether v is the zero value for its type.
 //
-// NOTE: This function is critical for CLI argument handling. Pointer types
-// (*string, *int, etc.) return true only when nil (not provided), NOT when
-// pointing to a zero value. This allows distinguishing between "flag not
-// provided" (nil) vs "flag explicitly set to zero" (e.g., --temperature 0
-// should override default, but no flag means preserve default).
+// This is critical for CLI handling: pointer types (*string, *int, …) return true
+// when nil (flag not provided), not when dereferencing to zero. This distinguishes
+// "--temperature 0" (explicit zero, overrides default) from no flag at all (nil,
+// preserves default from config/env).
 func isZero(v any) bool {
 	// Handle nil interface values first (before type switch)
 	if v == nil {
@@ -171,7 +170,8 @@ func isZero(v any) bool {
 	}
 }
 
-// ViperToRuntime converts viper configuration directly to runtime.Runtime.
+// ViperToRuntime converts viper configuration into a Runtime value.
+// FeedsFile and Prompt are passed separately as they come from positional CLI args.
 func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	rt := &runtime.Runtime{
 		FeedsFile: feedsFile,

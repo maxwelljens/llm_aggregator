@@ -27,44 +27,35 @@ func main() {
 	cli.BuildDate = buildDate
 	cli.Version = version
 
-	// Parse command line arguments
 	args, err := cli.ParseArgs()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, style.Errorf("parsing arguments: %v", err))
 		os.Exit(1)
 	}
 
-	// Set up signal handling before any blocking call.
-	// SIGINT, SIGTERM, and SIGHUP are all treated the same — clean shutdown.
 	sh := signals.New()
 	sh.Watch()
 
-
-	// Get viper instance with config file + environment variables + defaults
 	v := config.GetViper()
 
-	// Bind CLI args to viper (highest precedence)
 	config.BindCLIArgs(v, args.ToViperMap())
 
-	// Create runtime directly from viper configuration
+	// FeedsFile and Prompt come from positional CLI args; everything else from viper
 	rt := config.ViperToRuntime(v, args.FeedsFile, args.Prompt)
 
 
-	// Run dry-run mode if requested (validates config, shows statistics, no LLM calls)
 	if args.DryRun {
 		sh.Stop()
 		runDryRun(rt, args.Verbose)
 		os.Exit(0)
 	}
 
-	// Validate API key (required for actual execution)
 	if v.GetString("api_key") == "" {
 		sh.Stop()
 		fmt.Fprintln(os.Stderr, style.Errorf("OpenAI-compatible API key is required. Set via --api-key, %s environment variable, or config file.", "LLM_AGGREGATOR_API_KEY"))
 		os.Exit(1)
 	}
 
-	// Run with TUI if requested
 	if args.TUI {
 		sh.Stop()
 		runWithTUI(rt)
@@ -74,20 +65,13 @@ func main() {
 }
 
 func runWithTUI(rt *runtime.Runtime) {
-	// 1. Create the model and pass the runtime to it.
+	// Build the model and inject progress bridge so runtime can send messages into the TUI
 	model := tui.New(rt)
-
-	// 2. Create the tea.Program.
 	p := tea.NewProgram(model, tea.WithAltScreen())
-
-	// 3. Create the TUIProgress handler and give it the program instance.
-	//    This is the bridge that allows the runtime to send messages to the TUI.
 	tp := tui.NewTUIProgress(p)
-
-	// 4. Inject the progress handler into the runtime.
 	rt.Progress = tp
 
-	// 5. Run the program. This is a blocking call.
+	// Blocking call; returns on quit
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, style.Errorf("TUI error: %v", err))
 		os.Exit(1)
@@ -95,7 +79,7 @@ func runWithTUI(rt *runtime.Runtime) {
 }
 
 func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler) {
-	// Setup logger based on verbose flag and inject it into the runtime
+	// SimpleLogger outputs to stdout; nil uses NoopLogger
 	if verbose {
 		rt.Progress = progress.NewSimpleLogger(os.Stdout, true)
 	} else {

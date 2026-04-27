@@ -19,7 +19,8 @@ type ContentProcessor struct {
 	logger               *progress.Context
 }
 
-// NewContentProcessor creates a new ContentProcessor with the specified options.
+// NewContentProcessor creates a processor that filters and truncates articles.
+// Keyword comparison is case-insensitive.
 func NewContentProcessor(maxTotalArticles, maxContentPerArticle int, filterKeywords, excludeKeywords []string) *ContentProcessor {
 	// Convert keywords to lowercase for case-insensitive matching
 	filterLower := make([]string, len(filterKeywords))
@@ -45,7 +46,8 @@ func (cp *ContentProcessor) SetLogger(logger *progress.Context) {
 	cp.logger = logger
 }
 
-// ProcessArticles processes articles: filter, sort, and prepare for LLM.
+// ProcessArticles applies keyword filtering, sorting, and a ceiling on total count,
+// then converts each article to a map for the LLM.
 func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sortBy string, reverse bool) []map[string]any {
 	if len(articles) == 0 {
 		if cp.logger != nil {
@@ -78,6 +80,8 @@ func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sort
 	return processed
 }
 
+// filterArticles applies include/exclude keyword filters to the article list.
+// Exclusions take priority over inclusions. If no filters are set, all articles pass.
 func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*aggregator.Article {
 	if len(cp.filterKeywords) == 0 && len(cp.excludeKeywords) == 0 {
 		return articles
@@ -88,7 +92,6 @@ func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*ag
 	for _, article := range articles {
 		include := true
 
-		// Check if article should be excluded
 		if len(cp.excludeKeywords) > 0 {
 			articleText := strings.ToLower(article.Title + " " + article.Content)
 			for _, keyword := range cp.excludeKeywords {
@@ -102,7 +105,6 @@ func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*ag
 			}
 		}
 
-		// Check if article should be included (only if we have inclusion filters)
 		if include && len(cp.filterKeywords) > 0 {
 			articleText := strings.ToLower(article.Title + " " + article.Content)
 			include = false
@@ -134,13 +136,12 @@ func (cp *ContentProcessor) sortArticles(articles []*aggregator.Article, sortBy 
 		return articles
 	}
 
-	// Create a copy to avoid modifying the original slice
 	sortedArticles := make([]*aggregator.Article, len(articles))
 	copy(sortedArticles, articles)
 
-	// Define sort functions
 	switch strings.ToLower(sortBy) {
 	case "date":
+		// Zero times sort to the end when reverse=false (oldest last)
 		sort.Slice(sortedArticles, func(i, j int) bool {
 			iTime := sortedArticles[i].Published
 			jTime := sortedArticles[j].Published
@@ -174,7 +175,7 @@ func (cp *ContentProcessor) sortArticles(articles []*aggregator.Article, sortBy 
 			return iSource < jSource
 		})
 	default:
-		// Default to date sorting
+		// Unknown sort key: fall back to date order
 		sort.Slice(sortedArticles, func(i, j int) bool {
 			iTime := sortedArticles[i].Published
 			jTime := sortedArticles[j].Published
@@ -224,8 +225,8 @@ func (cp *ContentProcessor) prepareForLLM(articles []*aggregator.Article) []map[
 	return processed
 }
 
-// EstimateTokenCount estimates token count for articles using tiktoken.
-// This is the accurate method using OpenAI's tokenisation.
+// EstimateTokenCount uses tiktoken to estimate total token count across all articles.
+// Falls back to char÷4 on encoding errors (logged as warnings).
 func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any, model string) int {
 	totalTokens := 0
 

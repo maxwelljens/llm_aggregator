@@ -16,7 +16,8 @@ import (
 	"llm_aggregator/internal/progress"
 )
 
-// Runtime holds the execution context for the aggregator
+// Runtime holds the full execution context for the pipeline.
+// It is constructed once in main() and passed through each stage.
 type Runtime struct {
 	// Configuration
 	FeedsFile          string
@@ -46,11 +47,13 @@ type Runtime struct {
 	Error       error
 	Interrupted bool // Set to true when a termination signal is received
 
-	// Logger for verbose output
+	// Progress is the logger/progress handler injected by the caller.
+	// nil means no output (NoopLogger). SimpleLogger outputs to stdout.
+	// TUIProgress bridges into the Bubbletea program for live updates.
 	Progress progress.Progress
 }
 
-// Execute runs the full aggregation pipeline
+// Execute runs the four-stage pipeline: aggregate → process → LLM → (output is separate).
 func (r *Runtime) Execute(ctx context.Context) error {
 	// The logger/progress handler is injected, so we don't create it here.
 	// We wrap it in a context to pass to sub-modules that expect a *progress.Context.
@@ -154,9 +157,8 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	r.Progress.SetSubStage(fmt.Sprintf("Sending %d articles to LLM", len(processedArticles)))
 	r.Progress.StartWaiting()
 
-	// Derive a timeout context for the LLM call from the parent context.
-	// The parent context carries signal cancellation, so both signal interrupts
-	// and timeouts will abort the call.
+	// callCtx wraps the parent context with a timeout derived from LLMTimeout.
+	// Both signal cancellation and timeout will abort the LLM call.
 	callCtx := ctx
 	if r.LLMTimeout > 0 {
 		var cancel context.CancelFunc
@@ -181,7 +183,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	return nil
 }
 
-// WasInterrupted returns true if a termination signal was received during execution.
+// was interrupted by a signal during execution.
 func (r *Runtime) WasInterrupted() bool {
 	return r.Interrupted
 }

@@ -27,7 +27,8 @@ type FeedAggregator struct {
 	progressCtx        *progress.Context
 }
 
-// NewFeedAggregatorWithProgress creates a new FeedAggregator with progress context.
+// NewFeedAggregatorWithProgress creates a FeedAggregator with progress reporting.
+// progressCtx may be nil (e.g. in dry-run mode with verbose disabled).
 func NewFeedAggregatorWithProgress(maxArticlesPerFeed, maxDaysOld, maxContentLength int, progressCtx *progress.Context) *FeedAggregator {
 	return &FeedAggregator{
 		maxArticlesPerFeed: maxArticlesPerFeed,
@@ -94,8 +95,8 @@ func (fa *FeedAggregator) ParseFeedFromReader(reader io.Reader, sourceName strin
 	return articles, nil
 }
 
-// parseFeedsFromReader reads feed URLs from an io.Reader and fetches each one.
-// Used by both file-based and stdin-based feed loading.
+// parseFeedsFromReader reads feed URLs line-by-line from any io.Reader,
+// then fetches each feed concurrently. Used by both file and stdin paths.
 func (fa *FeedAggregator) parseFeedsFromReader(reader io.Reader, sourceName string) ([]*Article, error) {
 	content, err := io.ReadAll(reader)
 	if err != nil {
@@ -277,13 +278,9 @@ func (fa *FeedAggregator) parsePublishedDate(item *gofeed.Item) time.Time {
 }
 
 func (fa *FeedAggregator) extractContent(item *gofeed.Item, link string) string {
-	// Priority: Content -> Description -> Fetch webpage
-	// NOTE: Webpage scraping is only attempted when content is empty or <100
-	// chars. This balances content quality against latency (webpage fetch adds
-	// ~1-2s per article).
 	content := ""
 
-	// Try to get content from item
+	// Feed item content fields are tried in order; gofeed unifies atom Content/Description
 	if item.Content != "" {
 		content = item.Content
 	} else if item.Description != "" {
@@ -323,10 +320,10 @@ func (fa *FeedAggregator) fetchWebpageContent(url string) (string, error) {
 		return "", err
 	}
 
-	// Remove script and style elements
+	// Remove noise elements before extracting text
 	doc.Find("script, style, nav, footer, header").Remove()
 
-	// Try to find article content
+	// Try article-shaped selectors first, then fall back to paragraphs, then body
 	articleSelectors := []string{
 		"article",
 		"main",
@@ -348,7 +345,7 @@ func (fa *FeedAggregator) fetchWebpageContent(url string) (string, error) {
 		}
 	}
 
-	// Fallback: get all paragraphs
+	// Fallback: collect all paragraphs
 	paragraphs := doc.Find("p")
 	if paragraphs.Length() > 0 {
 		var texts []string
@@ -361,7 +358,7 @@ func (fa *FeedAggregator) fetchWebpageContent(url string) (string, error) {
 		}
 	}
 
-	// Last resort: get all text
+	// Last resort: raw body text
 	text := doc.Text()
 	text = strings.Join(strings.Fields(text), " ")
 	if len(text) > 200 {

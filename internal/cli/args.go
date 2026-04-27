@@ -13,7 +13,7 @@ var (
 	BuildDate string
 )
 
-// Args represents command-line arguments.
+// Args defines all command-line flags supported by the program.
 type Args struct {
 	// Feed input
 	FeedsFile string `arg:"-f,--feeds-file" help:"Path to file containing RSS feed URLs (one per line)"`
@@ -51,7 +51,7 @@ type Args struct {
 	DryRun       bool   `arg:"-D,--dry-run" help:"Validate config, show article statistics, and exit without making LLM API calls"`
 }
 
-// Version returns the version string.
+// Version returns the version string (e.g. "llm_aggregator v0.1.0 (built 2025-01-01)").
 func (a *Args) Version() string {
 	return fmt.Sprintf("llm_aggregator v%s (built %s)", Version, BuildDate)
 }
@@ -61,7 +61,8 @@ func (a *Args) Description() string {
 	return "LLM Aggregator - Aggregate RSS feeds and summarise with LLM API"
 }
 
-// ParseKeywords parses comma-separated keywords string into list.
+// ParseKeywords splits a comma-separated keyword string into a trimmed list.
+// Empty tokens resulting from malformed input are discarded.
 func ParseKeywords(keywordString string) []string {
 	if keywordString == "" {
 		return nil
@@ -106,13 +107,13 @@ func ParseArgs() (*Args, error) {
 	return &args, nil
 }
 
-// ToViperMap converts Args to a map for binding to Viper.
-// Only non-nil values (explicitly provided CLI flags) are included.
+// ToViperMap serialises Args to a viper key-value map.
+// Only fields with non-nil/non-empty values are included, giving CLI args the
+// highest precedence over config file and environment variables.
 //
-// NOTE: FeedsFile and Prompt are strings (not pointers), so they're ALWAYS
-// included if non-empty. This differs from optional fields which use pointer
-// types to detect explicit provision vs. default zero values. See isZero() in
-// config package.
+// NOTE: FeedsFile and Prompt are plain strings — they are always included when
+// non-empty, unlike optional pointer-typed fields where nil means "not provided".
+// This difference is intentional; see isZero in the config package.
 func (a *Args) ToViperMap() map[string]any {
 	m := map[string]any{}
 	if a.FeedsFile != "" {

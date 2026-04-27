@@ -8,7 +8,7 @@ import (
 	"github.com/pkoukk/tiktoken-go"
 )
 
-// Encoding names for different model families
+// Encoding names accepted by tiktoken for common model families.
 const (
 	EncodingCl100kBase = "cl100k_base" // GPT-4, GPT-3.5-turbo, embeddings
 	EncodingO200kBase  = "o200k_base"  // GPT-4o, GPT-4.1, GPT-4.5
@@ -24,7 +24,7 @@ type tokenizerCache struct {
 
 var cache = &tokenizerCache{encodings: make(map[string]*tiktoken.Tiktoken)}
 
-// GetEncoding returns a Tiktoken encoding for the given encoding name.
+// GetEncoding returns a cached Tiktoken encoding, initialising it if necessary.
 func GetEncoding(encodingName string) (*tiktoken.Tiktoken, error) {
 	// Check cache first
 	cache.mu.RLock()
@@ -48,7 +48,8 @@ func GetEncoding(encodingName string) (*tiktoken.Tiktoken, error) {
 	return enc, nil
 }
 
-// EncodingForModel returns the appropriate encoding name for a given model.
+// EncodingForModel maps a model name to the nearest tiktoken encoding.
+// Unknown model families fall back to cl100k_base.
 func EncodingForModel(model string) (string, error) {
 	model = strings.ToLower(model)
 
@@ -87,7 +88,7 @@ func EncodingForModel(model string) (string, error) {
 	return EncodingCl100kBase, nil
 }
 
-// CountTokens counts the tokens in a text string using the appropriate encoding.
+// CountTokens returns the number of tokens in text for the given model.
 func CountTokens(text string, model string) (int, error) {
 	encodingName, err := EncodingForModel(model)
 	if err != nil {

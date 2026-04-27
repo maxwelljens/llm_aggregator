@@ -2,7 +2,7 @@ package aggregator
 
 import "time"
 
-// Article represents an article extracted from an RSS feed.
+// Article represents an item extracted from an RSS feed.
 type Article struct {
 	Title      string    `json:"title"`
 	Link       string    `json:"link"`
@@ -13,7 +13,8 @@ type Article struct {
 	Summary    string    `json:"summary,omitempty"`
 }
 
-// ToMap converts article to a map for serialisation.
+// ToMap serialises the article to a map for LLM input or JSON output.
+// Content is truncated to 500 chars to avoid oversized prompts.
 func (a *Article) ToMap() map[string]any {
 	content := a.Content
 	if len(content) > 500 {

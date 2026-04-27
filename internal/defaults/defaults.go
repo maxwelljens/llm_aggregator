@@ -1,10 +1,7 @@
 package defaults
 
-// Default values for the llm_aggregator application.
-//
-// These constants are used throughout the codebase to ensure
-// consistent default values across CLI arguments, configuration,
-// and runtime settings.
+// Default values used throughout the application.
+// Kept in one place so they are consistent across CLI, config, and runtime.
 
 const (
 	// DefaultModel is the default LLM model.

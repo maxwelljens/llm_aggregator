@@ -7,14 +7,15 @@ import (
 	"llm_aggregator/internal/style"
 )
 
-// Logger provides logging interface for the aggregator
+// Logger is the minimal interface for progress and verbose logging implementations.
 type Logger interface {
 	Logf(format string, args ...any)
 	Warningf(format string, args ...any)
 	Debugf(format string, args ...any)
 }
 
-// Progress provides progress reporting interface for TUI
+// Progress extends Logger with stage/count/timing reporting.
+// Implementations: NoopLogger (no output), SimpleLogger (stdout), TUIProgress (tea messages).
 type Progress interface {
 	Logger
 	SetStage(stage string)
@@ -24,13 +25,13 @@ type Progress interface {
 	StartWaiting()
 }
 
-// SimpleLogger implements Logger with io.Writer output
+// SimpleLogger writes formatted output to an io.Writer.
 type SimpleLogger struct {
 	writer io.Writer
 	debug  bool
 }
 
-// NewSimpleLogger creates a new SimpleLogger
+// NewSimpleLogger creates a SimpleLogger; set debug=true to enable Debugf output.
 func NewSimpleLogger(writer io.Writer, debug bool) *SimpleLogger {
 	return &SimpleLogger{
 		writer: writer,
@@ -60,7 +61,7 @@ func (sl *SimpleLogger) SetArticleCount(total, processed int)       {}
 func (sl *SimpleLogger) SetTokenEstimate(total, used int)           {}
 func (sl *SimpleLogger) StartWaiting()                            {}
 
-// NoopLogger implements Logger with no output
+// NoopLogger discards all output. Used as the default when no progress is desired.
 type NoopLogger struct{}
 
 func (nl *NoopLogger) Logf(format string, args ...any)      {}
@@ -72,12 +73,12 @@ func (nl *NoopLogger) SetArticleCount(total, processed int)        {}
 func (nl *NoopLogger) SetTokenEstimate(total, used int)           {}
 func (nl *NoopLogger) StartWaiting()                            {}
 
-// Context provides progress context for components
+// Context wraps a Logger and guards against nil receiver.
 type Context struct {
 	logger Logger
 }
 
-// NewContext creates a new progress context
+// NewContext wraps a Logger. Passing nil produces a no-op context.
 func NewContext(logger Logger) *Context {
 	return &Context{
 		logger: logger,

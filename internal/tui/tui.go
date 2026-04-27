@@ -8,13 +8,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// TUIProgress implements the progress.Progress interface for TUI
+// TUIProgress bridges progress.Progress calls into a running Bubbletea tea.Program.
 type TUIProgress struct {
 	program *tea.Program
 }
 
-// NewTUIProgress creates a new TUIProgress.
-// It now accepts the program instance instead of creating one.
+// NewTUIProgress wraps an existing tea.Program instance (created by the caller).
 func NewTUIProgress(p *tea.Program) *TUIProgress {
 	return &TUIProgress{
 		program: p,
@@ -56,7 +55,7 @@ func (tp *TUIProgress) Warningf(format string, args ...any) {
 	tp.Logf("⚠️ Warning: "+format, args...)
 }
 
-// Debugf does nothing in the TUI.
+// Debugf is a no-op in the TUI; debug output is handled via the progress bar.
 func (tp *TUIProgress) Debugf(format string, args ...any) {}
 
 // Run runs the TUI

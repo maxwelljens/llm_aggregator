@@ -25,13 +25,8 @@ type LLMClient struct {
 	logger    *progress.Context
 }
 
-// NewLLMClient creates a new LLM client.
-// apiKey: LLM API key (or read from LLM_AGGREGATOR_API_KEY env var)
-// baseURL: API base URL (defaults to "https://api.deepseek.com")
-// model: Model to use (defaults to "deepseek-chat")
-// maxTokens: Maximum tokens in response (defaults to 4000)
-// temperature: Sampling temperature (0.0 to 1.0, defaults to 0.7)
-// timeoutSeconds: Request timeout in seconds (defaults to 300)
+// NewLLMClient creates an LLM API client.
+// Set apiKey to "" to read from LLM_AGGREGATOR_API_KEY.
 func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature float64, timeoutSeconds int) (*LLMClient, error) {
 	// Get API key from parameter or environment variable
 	if apiKey == "" {
@@ -83,17 +78,15 @@ func (dc *LLMClient) SetLogger(logger *progress.Context) {
 	dc.logger = logger
 }
 
-// TokenUsage holds token usage information from the API
+// TokenUsage holds token usage information from the API response.
 type TokenUsage struct {
 	PromptTokens     int
 	CompletionTokens int
 }
 
-// SummariseArticles summarises a list of articles based on user prompt.
-// articles: List of article maps
-// userPrompt: User's query/summarisation request
-// systemPrompt: Optional system prompt (defaults to helpful assistant)
-// ctx: Context for cancellation. If cancelled, the LLM API call aborts.
+// SummariseArticles sends articles to the LLM for summarisation.
+// Returns the LLM response text, token usage, and any error.
+// ctx must carry signal cancellation so that SIGINT/SIGTERM aborts the call.
 func (dc *LLMClient) SummariseArticles(
 	articles []map[string]any,
 	userPrompt string,
