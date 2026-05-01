@@ -81,10 +81,15 @@ llm_aggregator -f feeds.txt --stdin -p "Summarise all"
 | `-f, --feeds-file FILE` | Path to file containing RSS feed URLs (one per line) |
 | `-p, --prompt PROMPT` | User prompt for summarisation/analysis |
 
+> [!NOTE]
+> `-f/--feeds-file` is required only if not using `--stdin`
+
 ### Feed & filtering options
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-f, --feeds-file FILE` | — | Path to file containing RSS feed URLs (one per line) |
+| `--stdin` | `false` | Read a single RSS/Atom feed from stdin (can be combined with `-f`) |
 | `-n, --max-articles-per-feed N` | `10` | Maximum articles to fetch from each feed |
 | `-d, --max-days-old N` | `7` | Only include articles from the last N days (0 for all) |
 | `--max-total-articles N` | `20` | Maximum total articles to process |
