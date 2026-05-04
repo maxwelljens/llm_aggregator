@@ -15,7 +15,7 @@
 
 `llm_aggregator` fetches articles from multiple RSS/Atom feeds, filters and
 processes the content, and sends it to any OpenAI-compatible LLM to produce a
-concise summary, without reading dozens of posts.
+concise summary, without you needing to read dozens or hundreds of posts.
 
 **Supports**: RSS 2.0, Atom, JSON Feed | OpenAI-compatible APIs | Local LLMs
 (Ollama, etc.) | TUI with live progress | Text/Markdown/JSON output
