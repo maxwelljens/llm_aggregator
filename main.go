@@ -8,15 +8,15 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"llm_aggregator/internal/aggregator"
-	"llm_aggregator/internal/cli"
-	"llm_aggregator/internal/config"
-	"llm_aggregator/internal/processor"
-	"llm_aggregator/internal/progress"
-	"llm_aggregator/internal/runtime"
-	"llm_aggregator/internal/signals"
-	"llm_aggregator/internal/style"
-	"llm_aggregator/internal/tui"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/config"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/processor"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/signals"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/tui"
 )
 
 var (

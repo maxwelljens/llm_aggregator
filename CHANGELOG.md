@@ -6,6 +6,13 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-05-04
+
+### Changed
+
+- Module path updated to `codeberg.org/maxwelljensen/llm_aggregator` — all
+  internal imports updated accordingly.
+
 ## [1.0.0] - 2026-04-27
 
 ### Added
@@ -287,7 +294,7 @@ work-in-progress TUI implementation with a robust Bubble Tea command pattern:
   `LLM_AGGREGATOR_API_KEY`
 - **CLI help text** now reflects the new API key environment variable and
   general configuration options
-- **Command‑line argument precedence** implemented in `cmd/llm_aggregator.go`
+- **Command‑line argument precedence** implemented in `cmd/llm_aggregator/main.go`
 via `applyConfiguration()`
 - Updated all help text, documentation, and code references
 - `README.md` completely revised with a new "Configuration" section

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"llm_aggregator/internal/style"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
 )
 
 func TestShouldStyle(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"llm_aggregator/internal/aggregator"
-	"llm_aggregator/internal/progress"
-	"llm_aggregator/internal/tokeniser"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/tokeniser"
 )
 
 // ContentProcessor processes and prepares aggregated content for LLM analysis.

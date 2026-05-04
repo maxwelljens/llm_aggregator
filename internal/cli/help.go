@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"llm_aggregator/internal/style"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
 )
 
 type HelpOption struct {

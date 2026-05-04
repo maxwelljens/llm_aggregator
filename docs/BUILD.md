@@ -16,7 +16,7 @@ cd llm_aggregator
 go mod tidy
 
 # Build the binary
-go build ./cmd/llm_aggregator.go
+go build .
 
 # Run
 ./llm_aggregator --help
@@ -33,7 +33,7 @@ go build -ldflags "
   -s -w
   -X main.version=$(git describe --tags --always --dirty 2>/dev/null || echo 'dev')
   -X main.buildDate=$(date -u +%Y-%m-%d)
-" ./cmd/llm_aggregator.go
+.
 ```
 
 The `--version` flag will then report the current git tag + commit hash.
@@ -65,13 +65,13 @@ Go makes cross-compilation straightforward:
 
 ```bash
 # Linux on macOS (or vice versa)
-GOOS=linux GOARCH=amd64 go build ./cmd/llm_aggregator.go
+GOOS=linux GOARCH=amd64 go build .
 
 # Windows
-GOOS=windows GOARCH=amd64 go build -o llm_aggregator.exe ./cmd/llm_aggregator.go
+GOOS=windows GOARCH=amd64 go build -o llm_aggregator.exe .
 
 # ARM64 Linux
-GOOS=linux GOARCH=arm64 go build ./cmd/llm_aggregator.go
+GOOS=linux GOARCH=arm64 go build .
 ```
 
 ## Running tests

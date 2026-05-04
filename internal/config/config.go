@@ -8,11 +8,11 @@ import (
 
 	"github.com/spf13/viper"
 
-	"llm_aggregator/internal/cli"
-	"llm_aggregator/internal/defaults"
-	"llm_aggregator/internal/progress"
-	"llm_aggregator/internal/runtime"
-	"llm_aggregator/internal/style"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
 )
 
 // Config holds application configuration sourced from TOML, environment variables, and CLI arguments.

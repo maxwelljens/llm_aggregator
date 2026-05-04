@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"llm_aggregator/internal/style"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
 )
 
 // Logger is the minimal interface for progress and verbose logging implementations.

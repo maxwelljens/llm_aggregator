@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"llm_aggregator/internal/aggregator"
-	"llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 )
 
 const testAtomFeed = `<?xml version="1.0" encoding="UTF-8"?>

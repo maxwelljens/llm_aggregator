@@ -8,12 +8,12 @@ import (
 	"os"
 	"time"
 
-	"llm_aggregator/internal/aggregator"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 
-	"llm_aggregator/internal/llm"
-	"llm_aggregator/internal/output"
-	"llm_aggregator/internal/processor"
-	"llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/llm"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/output"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/processor"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 )
 
 // Runtime holds the full execution context for the pipeline.

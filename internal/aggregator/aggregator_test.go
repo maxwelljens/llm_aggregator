@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 )
 
 // Mock feed data for testing

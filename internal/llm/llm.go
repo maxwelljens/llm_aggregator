@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"llm_aggregator/internal/defaults"
-	"llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"

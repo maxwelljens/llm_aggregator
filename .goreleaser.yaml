@@ -14,7 +14,7 @@ builds:
       - arm64
       - amd64
       - "386"
-    dir: cmd
+    dir: .
 
 archives:
   - formats: [tar.gz]

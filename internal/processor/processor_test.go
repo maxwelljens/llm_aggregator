@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"llm_aggregator/internal/aggregator"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 )
 
 func TestNewContentProcessor(t *testing.T) {

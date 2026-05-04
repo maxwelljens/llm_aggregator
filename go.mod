@@ -1,4 +1,4 @@
-module llm_aggregator
+module codeberg.org/maxwelljensen/llm_aggregator
 
 go 1.25.8
 

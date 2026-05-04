@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"llm_aggregator/internal/cli"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
 )
 
 func TestIsZero(t *testing.T) {

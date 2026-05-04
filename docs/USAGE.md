@@ -4,7 +4,7 @@
 
 ```bash
 # From source
-go build ./cmd/llm_aggregator.go
+go build .
 ```
 
 Or grab the latest binary in the

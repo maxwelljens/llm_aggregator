@@ -1,5 +1,5 @@
 # Binaries for programs and plugins
-llm_aggregator
+/llm_aggregator
 *.exe
 *.exe~
 *.dll

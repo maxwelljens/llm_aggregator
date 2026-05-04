@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"llm_aggregator/internal/runtime"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
 )
 
 // Regex pattern to match thinking tags (both <think> and </think>)
