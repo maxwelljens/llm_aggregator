@@ -17,16 +17,18 @@ var (
 
 // SignalHandler coordinates signal watching and exit requests.
 type SignalHandler struct {
-	notify  chan os.Signal
-	done    chan struct{}
-	exiting atomic.Bool
+	notify   chan os.Signal
+	done     chan struct{}
+	received chan struct{}
+	exiting  atomic.Bool
 }
 
 // New creates a new SignalHandler.
 func New() *SignalHandler {
 	return &SignalHandler{
-		notify: make(chan os.Signal, 1),
-		done:   make(chan struct{}),
+		notify:   make(chan os.Signal, 1),
+		done:     make(chan struct{}),
+		received: make(chan struct{}),
 	}
 }
 
@@ -38,6 +40,7 @@ func (sh *SignalHandler) Watch() {
 		select {
 		case <-sh.notify:
 			sh.exiting.Store(true)
+			close(sh.received)
 		case <-sh.done:
 			return
 		}
@@ -47,6 +50,12 @@ func (sh *SignalHandler) Watch() {
 // IsExiting returns true if an exit has been requested (by signal).
 func (sh *SignalHandler) IsExiting() bool {
 	return sh.exiting.Load()
+}
+
+// Done returns a channel that is closed when a signal is received.
+// It is never closed on a clean Stop(); select on it together with ctx.Done().
+func (sh *SignalHandler) Done() <-chan struct{} {
+	return sh.received
 }
 
 // Stop stops signal watching. The Watch() goroutine exits immediately.

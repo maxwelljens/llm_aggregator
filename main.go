@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
@@ -93,18 +92,12 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler)
 	// so the program stays alive long enough to handle them.
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Monitor for signals and propagate into context cancellation.
-	// This goroutine lives until the Watch() goroutine exits (signalled via sh).
+	// Propagate signal reception into context cancellation. The channel closes
+	// exactly once, when the first signal arrives; on clean completion os.Exit
+	// terminates this goroutine.
 	go func() {
-		// Poll IsExiting() — returns true as soon as the signal is received.
-		// Sleep briefly to avoid a tight busy-wait loop.
-		for {
-			if sh.IsExiting() {
-				cancel()
-				return
-			}
-			time.Sleep(time.Millisecond)
-		}
+		<-sh.Done()
+		cancel()
 	}()
 
 	// Execute the runtime

@@ -42,10 +42,8 @@ type Runtime struct {
 	Verbose            bool
 
 	// State
-	Articles    []map[string]any
-	Summary     string
-	Error       error
-	Interrupted bool // Set to true when a termination signal is received
+	Articles []map[string]any
+	Summary  string
 
 	// Progress is the logger/progress handler injected by the caller.
 	// nil means no output (NoopLogger). SimpleLogger outputs to stdout.
@@ -183,10 +181,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	return nil
 }
 
-// WasInterrupted reports whether the runtime was interrupted by a signal during execution.
-func (r *Runtime) WasInterrupted() bool {
-	return r.Interrupted
-}
+// WriteOutput writes the formatted summary to the given writer.
 func (r *Runtime) WriteOutput(writer io.Writer) error {
 	if r.Plain {
 		if _, err := fmt.Fprint(writer, r.Summary); err != nil {
