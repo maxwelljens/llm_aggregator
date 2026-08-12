@@ -16,6 +16,32 @@ import (
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 )
 
+// Summariser is the seam behind which the LLM call lives.
+// Runtime.Execute uses it; tests inject a fake to exercise the whole
+// pipeline without a network call. The production adapter is llm.LLMClient.
+type Summariser interface {
+	SummariseArticles(articles []*aggregator.Article, userPrompt, systemPrompt string, ctx context.Context) (string, *llm.TokenUsage, error)
+	SetLogger(progress progress.Progress)
+}
+
+// Result carries the outcome of an Execute run. State is returned rather
+// than stored on Runtime so a single Runtime can be reused and tests can
+// assert on it without reaching into shared mutable fields.
+type Result struct {
+	Articles        []*aggregator.Article // processed articles
+	ArticlesFetched int                   // articles before filtering
+	Summary         string                // LLM summary; empty in dry-run
+	TokenEstimate   int
+}
+
+// Sentinels distinguishing "nothing to do" outcomes from real failures.
+// The dry-run path treats these as informative and exits 0.
+var (
+	ErrNoArticles                = errors.New("no articles found after parsing feeds")
+	ErrNoArticlesPassedFiltering = errors.New("no articles passed filtering")
+	ErrNoFeedSource              = errors.New("no feed source specified: use --feeds-file or --stdin")
+)
+
 // Runtime holds the full execution context for the pipeline.
 // It is constructed once in main() and passed through each stage.
 type Runtime struct {
@@ -40,19 +66,20 @@ type Runtime struct {
 	IncludeArticles    bool
 	Plain              bool
 	Verbose            bool
-
-	// State
-	Articles []*aggregator.Article
-	Summary  string
+	DryRun             bool // skip the LLM call; Execute returns the processed articles
 
 	// Progress is the logger/progress handler injected by the caller.
 	// nil means no output (NoopLogger). SimpleLogger outputs to stdout.
 	// TUIProgress bridges into the Bubbletea program for live updates.
 	Progress progress.Progress
+
+	// Summariser is injected for tests; nil means the default LLM client.
+	Summariser Summariser
 }
 
-// Execute runs the four-stage pipeline: aggregate → process → LLM → (output is separate).
-func (r *Runtime) Execute(ctx context.Context) error {
+// Execute runs the pipeline: aggregate → process → (optionally) LLM.
+// In dry-run mode it returns after processing with an empty Summary.
+func (r *Runtime) Execute(ctx context.Context) (Result, error) {
 	// Guard against a nil Progress (bare Runtime values); NoopLogger produces no output.
 	if r.Progress == nil {
 		r.Progress = &progress.NoopLogger{}
@@ -80,11 +107,11 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		var fileArticles []*aggregator.Article
 
 		if stdinArticles, err = feedAgg.ParseFeedFromStdin(); err != nil {
-			return fmt.Errorf("error parsing stdin feed: %w", err)
+			return Result{}, fmt.Errorf("error parsing stdin feed: %w", err)
 		}
 
 		if fileArticles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
-			return fmt.Errorf("error aggregating feeds: %w", err)
+			return Result{}, fmt.Errorf("error aggregating feeds: %w", err)
 		}
 
 		articles = append(stdinArticles, fileArticles...) //nolint:gocritic
@@ -92,20 +119,20 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		// Stdin only
 		r.Progress.SetSubStage("Parsing stdin feed")
 		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
-			return fmt.Errorf("error parsing stdin feed: %w", err)
+			return Result{}, fmt.Errorf("error parsing stdin feed: %w", err)
 		}
 	case r.FeedsFile != "":
 		// Feeds file only
 		r.Progress.SetSubStage("Parsing feeds from " + r.FeedsFile)
 		if articles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
-			return fmt.Errorf("error aggregating feeds: %w", err)
+			return Result{}, fmt.Errorf("error aggregating feeds: %w", err)
 		}
 	default:
-		return errors.New("no feed source specified: use --feeds-file or --stdin")
+		return Result{}, ErrNoFeedSource
 	}
 
 	if len(articles) == 0 {
-		return errors.New("no articles found after parsing feeds")
+		return Result{}, ErrNoArticles
 	}
 	r.Progress.SetArticleCount(len(articles), 0)
 
@@ -124,32 +151,44 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	processedArticles := contentProc.ProcessArticles(articles, "date", true)
 
 	if len(processedArticles) == 0 {
-		return errors.New("no articles passed filtering")
+		return Result{}, ErrNoArticlesPassedFiltering
 	}
 	r.Progress.SetArticleCount(len(articles), len(articles)-len(processedArticles))
 
-	r.Articles = processedArticles
-
-	// Estimate tokens for progress tracking
+	// Estimate tokens for progress tracking and dry-run output
 	tokenEst := contentProc.EstimateTokenCount(processedArticles, r.Model)
 	r.Progress.SetTokenEstimate(tokenEst, tokenEst)
+
+	result := Result{
+		Articles:        processedArticles,
+		ArticlesFetched: len(articles),
+		TokenEstimate:   tokenEst,
+	}
+
+	if r.DryRun {
+		return result, nil
+	}
 
 	// Step 3: Initialise LLM client
 	r.Progress.SetStage(progress.StageConnecting)
 	r.Progress.SetSubStage("Using model: " + r.Model)
 
-	llm, err := llm.NewLLMClient(
-		r.APIKey,
-		r.BaseURL,
-		r.Model,
-		r.MaxTokens,
-		r.Temperature,
-		r.LLMTimeout,
-	)
-	if err != nil {
-		return fmt.Errorf("error initialising LLM client: %w", err)
+	summariser := r.Summariser
+	if summariser == nil {
+		client, err := llm.NewLLMClient(
+			r.APIKey,
+			r.BaseURL,
+			r.Model,
+			r.MaxTokens,
+			r.Temperature,
+			r.LLMTimeout,
+		)
+		if err != nil {
+			return Result{}, fmt.Errorf("error initialising LLM client: %w", err)
+		}
+		client.SetLogger(r.Progress)
+		summariser = client
 	}
-	llm.SetLogger(r.Progress)
 
 	// Step 4: Get summary from LLM
 	r.Progress.SetStage(progress.StageGettingSummary)
@@ -165,27 +204,27 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		defer cancel()
 	}
 
-	summary, usage, err := llm.SummariseArticles(
+	summary, usage, err := summariser.SummariseArticles(
 		processedArticles,
 		r.Prompt,
 		r.SystemPrompt,
 		callCtx,
 	)
 	if err != nil {
-		return fmt.Errorf("error getting summary from LLM: %w", err)
+		return Result{}, fmt.Errorf("error getting summary from LLM: %w", err)
 	}
 
-	r.Summary = summary
+	result.Summary = summary
 	if usage != nil {
 		r.Progress.SetTokenEstimate(tokenEst, tokenEst+usage.CompletionTokens)
 	}
-	return nil
+	return result, nil
 }
 
 // WriteOutput writes the formatted summary to the given writer.
-func (r *Runtime) WriteOutput(writer io.Writer) error {
+func (r *Runtime) WriteOutput(writer io.Writer, result Result) error {
 	if r.Plain {
-		if _, err := fmt.Fprint(writer, r.Summary); err != nil {
+		if _, err := fmt.Fprint(writer, result.Summary); err != nil {
 			return fmt.Errorf("error writing plain output: %w", err)
 		}
 		return nil
@@ -200,13 +239,13 @@ func (r *Runtime) WriteOutput(writer io.Writer) error {
 		Title:         "LLM Aggregator Summary - " + time.Now().Format("2006-01-02 15:04"),
 		Prompt:        r.Prompt,
 		Model:         r.Model,
-		ArticlesCount: len(r.Articles),
-		Summary:       r.Summary,
+		ArticlesCount: len(result.Articles),
+		Summary:       result.Summary,
 		Timestamp:     time.Now().Format(time.RFC3339),
 	}
 
 	if r.IncludeArticles {
-		outputData.Articles = r.Articles
+		outputData.Articles = result.Articles
 	}
 
 	formattedOutput, err := formatter.FormatData(outputData)
@@ -222,9 +261,9 @@ func (r *Runtime) WriteOutput(writer io.Writer) error {
 }
 
 // WriteOutputToFile writes the output to the specified file
-func (r *Runtime) WriteOutputToFile() error {
+func (r *Runtime) WriteOutputToFile(result Result) error {
 	if r.OutputFile == "" {
-		return r.WriteOutput(os.Stdout)
+		return r.WriteOutput(os.Stdout, result)
 	}
 
 	file, err := os.Create(r.OutputFile)
@@ -233,5 +272,5 @@ func (r *Runtime) WriteOutputToFile() error {
 	}
 	defer file.Close() //nolint:errcheck
 
-	return r.WriteOutput(file)
+	return r.WriteOutput(file, result)
 }

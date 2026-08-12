@@ -95,7 +95,8 @@ type TokenEstimateMsg struct {
 type WaitingMsg struct{}
 
 type processingDoneMsg struct {
-	err error
+	err     error
+	summary string
 }
 
 type progressMsg float64
@@ -163,8 +164,8 @@ func (m *Model) Init() tea.Cmd {
 // startProcessing is the standard bubbletea command pattern.
 // The runtime executes in a goroutine managed by the bubbletea runtime.
 func (m *Model) startProcessing() tea.Msg {
-	err := m.runtime.Execute(context.Background())
-	return processingDoneMsg{err: err}
+	result, err := m.runtime.Execute(context.Background())
+	return processingDoneMsg{err: err, summary: result.Summary}
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -279,11 +280,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = stepNames[m.totalSteps]
 			m.subStatus = "Summary generated successfully!"
 			// Enable summary viewport if there's content to display
-			if m.runtime.Summary != "" {
+			if msg.summary != "" {
 				m.showSummary = true
 				// Extract and remove thinking tags from the summary
-				m.thinkingContent = thinkingTagRegex.FindString(m.runtime.Summary)
-				m.cleanSummary = thinkingTagRegex.ReplaceAllString(m.runtime.Summary, "")
+				m.thinkingContent = thinkingTagRegex.FindString(msg.summary)
+				m.cleanSummary = thinkingTagRegex.ReplaceAllString(msg.summary, "")
 				// Clean up extra whitespace left behind after removing thinking tags
 				m.cleanSummary = strings.TrimSpace(m.cleanSummary)
 				// Resize viewport to fit available space

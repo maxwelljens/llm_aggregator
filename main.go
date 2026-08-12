@@ -2,14 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 
-	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/config"
-	"codeberg.org/maxwelljensen/llm_aggregator/internal/processor"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/signals"
@@ -45,6 +44,7 @@ func main() {
 
 	if args.DryRun {
 		sh.Stop()
+		rt.DryRun = true
 		runDryRun(rt, args.Verbose)
 		os.Exit(0)
 	}
@@ -100,12 +100,12 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler)
 	}()
 
 	// Execute the runtime
-	err := rt.Execute(ctx)
+	result, err := rt.Execute(ctx)
 	if sh.IsExiting() {
 		// Signal arrived during execution — output partial result if available
 		sh.Stop()
-		if rt.Summary != "" {
-			_ = rt.WriteOutput(os.Stdout) //nolint:errcheck // stdout write failure is unrecoverable
+		if result.Summary != "" {
+			_ = rt.WriteOutput(os.Stdout, result) //nolint:errcheck // stdout write failure is unrecoverable
 		}
 		fmt.Fprintln(os.Stderr, style.Errorf("interrupted by signal"))
 		os.Exit(130)
@@ -118,12 +118,12 @@ func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler)
 
 	// Write output
 	if rt.OutputFile != "" {
-		if err := rt.WriteOutputToFile(); err != nil {
+		if err := rt.WriteOutputToFile(result); err != nil {
 			fmt.Fprintln(os.Stderr, style.Errorf("writing output to file: %v", err))
 			os.Exit(1)
 		}
 	} else {
-		if err := rt.WriteOutput(os.Stdout); err != nil {
+		if err := rt.WriteOutput(os.Stdout, result); err != nil {
 			fmt.Fprintln(os.Stderr, style.Errorf("writing output: %v", err))
 			os.Exit(1)
 		}
@@ -166,77 +166,37 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	fmt.Printf("  LLM timeout: %s\n", style.Value(fmt.Sprintf("%d seconds", rt.LLMTimeout)))
 	fmt.Println()
 
-	// Fetch and process feeds (but don't call LLM)
+	// Fetch and process feeds through the shared pipeline (no LLM call)
 	fmt.Println(style.Info("Fetching feeds..."))
 
-	feedAgg := aggregator.NewFeedAggregator(
-		rt.MaxArticlesPerFeed,
-		rt.MaxDaysOld,
-		5000, // max content length
-		nil,  // No progress context for cleaner dry-run output
-	)
-
-	var articles []*aggregator.Article
-	var err error
-
-	switch {
-	case rt.Stdin && rt.FeedsFile != "":
-		var stdinArticles []*aggregator.Article
-		var fileArticles []*aggregator.Article
-
-		if stdinArticles, err = feedAgg.ParseFeedFromStdin(); err != nil {
-			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse stdin feed: %v", err))
-			os.Exit(1)
+	result, err := rt.Execute(context.Background())
+	if err != nil {
+		if errors.Is(err, runtime.ErrNoArticles) || errors.Is(err, runtime.ErrNoArticlesPassedFiltering) {
+			fmt.Fprintln(os.Stderr, style.Warning("No articles found. Check your feeds file or network connectivity."))
+			fmt.Println()
+			fmt.Printf("%s %s\n", style.Success("Dry-run complete"), "(no LLM API calls made).")
+			os.Exit(0)
 		}
-		if fileArticles, err = feedAgg.ParseFeedsFromFile(rt.FeedsFile); err != nil {
-			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds file: %v", err))
-			os.Exit(1)
-		}
-		articles = append(stdinArticles, fileArticles...) //nolint:gocritic
-	case rt.Stdin:
-		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
-			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse stdin feed: %v", err))
-			os.Exit(1)
-		}
-	default:
-		if articles, err = feedAgg.ParseFeedsFromFile(rt.FeedsFile); err != nil {
-			fmt.Fprintln(os.Stderr, style.Errorf("Failed to parse feeds: %v", err))
-			os.Exit(1)
-		}
+		fmt.Fprintln(os.Stderr, style.Errorf("dry-run failed: %v", err))
+		os.Exit(1)
 	}
 
-	totalArticles := len(articles)
+	totalArticles := result.ArticlesFetched
 	fmt.Printf("%s Fetched %d articles from feeds\n", style.Success(""), totalArticles)
 
-	if totalArticles == 0 {
-		fmt.Fprintln(os.Stderr, style.Warning("No articles found. Check your feeds file or network connectivity."))
-		fmt.Println()
-		fmt.Printf("%s %s\n", style.Success("Dry-run complete"), "(no LLM API calls made).")
-		os.Exit(0)
-	}
-
-	// Process articles (filter and sort)
-	contentProc := processor.NewContentProcessor(
-		rt.MaxTotalArticles,
-		3000, // max content per article
-		rt.IncludeKeywords,
-		rt.ExcludeKeywords,
-	)
-
-	processedArticles := contentProc.ProcessArticles(articles, "date", true)
-	filteredCount := totalArticles - len(processedArticles)
+	filteredCount := totalArticles - len(result.Articles)
 
 	fmt.Println()
 	fmt.Println(style.Label("Article statistics:"))
 	fmt.Printf("  Total fetched: %s\n", style.Value(strconv.Itoa(totalArticles)))
-	fmt.Printf("  After filtering: %s\n", style.Value(strconv.Itoa(len(processedArticles))))
+	fmt.Printf("  After filtering: %s\n", style.Value(strconv.Itoa(len(result.Articles))))
 	if filteredCount > 0 {
 		fmt.Printf("  Filtered out: %s\n", style.Value(strconv.Itoa(filteredCount)))
 	}
 
 	// Group articles by source for summary
 	sourceCounts := make(map[string]int)
-	for _, article := range processedArticles {
+	for _, article := range result.Articles {
 		if article.SourceFeed != "" {
 			sourceCounts[article.SourceFeed]++
 		}
@@ -250,10 +210,8 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 		}
 	}
 
-	// Estimate token count
-	estimatedTokens := contentProc.EstimateTokenCount(processedArticles, rt.Model)
 	fmt.Println()
-	fmt.Printf("Estimated token count: %s (for model: %s)\n", style.Value(fmt.Sprintf("~%d", estimatedTokens)), style.Value(rt.Model))
+	fmt.Printf("Estimated token count: %s (for model: %s)\n", style.Value(fmt.Sprintf("~%d", result.TokenEstimate)), style.Value(rt.Model))
 	fmt.Printf("Max tokens for response: %s\n", style.Value(strconv.Itoa(rt.MaxTokens)))
 
 	// Prompt preview
