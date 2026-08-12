@@ -11,10 +11,10 @@ import (
 
 func TestNewFormatter(t *testing.T) {
 	tests := []struct {
-		name      string
-		format    string
-		wantErr   bool
-		wantNil   bool
+		name    string
+		format  string
+		wantErr bool
+		wantNil bool
 	}{
 		{"text format", "text", false, false},
 		{"json format", "json", false, false},
@@ -258,7 +258,7 @@ func TestCenterText(t *testing.T) {
 		width  int
 		expect string
 	}{
-		{"short text", "Hi", 10, "    Hi    "},  // 3 left, 2 right (floored)
+		{"short text", "Hi", 10, "    Hi    "}, // 3 left, 2 right (floored)
 		{"exact width", "Hello", 5, "Hello"},
 		{"longer than width", "Hello World", 5, "Hello World"},
 		{"even padding", "Test", 12, "    Test    "}, // 4 left, 3 right (floored)
