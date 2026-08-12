@@ -38,7 +38,7 @@ func testFeedsFile(t *testing.T, content string) string {
 func TestExecuteBranchStdinOnly(t *testing.T) {
 	tmpFile := testFeedsFile(t, "https://example.com/does-not-exist\n")
 
-	fa := aggregator.NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := aggregator.NewFeedAggregator(10, 0, 5000, nil)
 
 	// Simulate Runtime.Execute branch: Stdin=true, FeedsFile=""
 	r := &Runtime{
@@ -75,7 +75,7 @@ func TestExecuteBranchStdinOnly(t *testing.T) {
 func TestExecuteBranchFeedsFileOnly(t *testing.T) {
 	feedsFile := testFeedsFile(t, "https://example.com/does-not-exist\n")
 
-	fa := aggregator.NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := aggregator.NewFeedAggregator(10, 0, 5000, nil)
 
 	// Simulate Runtime.Execute branch: Stdin=false, FeedsFile=file
 	articles, err := fa.ParseFeedsFromFile(feedsFile)
@@ -96,7 +96,7 @@ func TestExecuteBranchFeedsFileOnly(t *testing.T) {
 func TestExecuteBranchCollated(t *testing.T) {
 	feedsFile := testFeedsFile(t, "https://example.com/does-not-exist\n")
 
-	fa := aggregator.NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := aggregator.NewFeedAggregator(10, 0, 5000, nil)
 
 	// Simulate Runtime.Execute branch: Stdin=true AND FeedsFile=file
 	// Parse stdin (simulated via strings.Reader)
