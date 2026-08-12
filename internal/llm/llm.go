@@ -17,12 +17,12 @@ import (
 
 // LLMClient is a client for interacting with LLM API.
 type LLMClient struct {
-	client     openai.Client
-	model      string
-	maxTokens  int
+	client      openai.Client
+	model       string
+	maxTokens   int
 	temperature *float64
-	llmTimeout int // seconds; 0 means no timeout
-	logger     *progress.Context
+	llmTimeout  int // seconds; 0 means no timeout
+	logger      progress.Progress
 }
 
 // NewLLMClient creates an LLM API client.
@@ -66,16 +66,20 @@ func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature *flo
 	client := openai.NewClient(clientOpts...)
 
 	return &LLMClient{
-		client:     client,
-		model:      model,
-		maxTokens:  maxTokens,
+		client:      client,
+		model:       model,
+		maxTokens:   maxTokens,
 		temperature: temperature,
-		llmTimeout: timeoutSeconds,
+		llmTimeout:  timeoutSeconds,
+		logger:      &progress.NoopLogger{},
 	}, nil
 }
 
-// SetLogger sets the logger for the LLM client
-func (dc *LLMClient) SetLogger(logger *progress.Context) {
+// SetLogger sets the logger for the LLM client; nil means no output.
+func (dc *LLMClient) SetLogger(logger progress.Progress) {
+	if logger == nil {
+		logger = &progress.NoopLogger{}
+	}
 	dc.logger = logger
 }
 
@@ -184,11 +188,9 @@ If relevant, note any patterns, contradictions, or notable developments.`,
 }
 
 func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.ChatCompletionMessageParamUnion) (string, *TokenUsage, error) {
-	if dc.logger != nil {
-		dc.logger.Logf("Calling LLM API with model: %s", dc.model)
-		dc.logger.Logf("Max tokens: %d, Temperature: %.2f", dc.maxTokens, *dc.temperature)
-		dc.logger.Logf("Messages count: %d", len(messages))
-	}
+	dc.logger.Logf("Calling LLM API with model: %s", dc.model)
+	dc.logger.Logf("Max tokens: %d, Temperature: %.2f", dc.maxTokens, *dc.temperature)
+	dc.logger.Logf("Messages count: %d", len(messages))
 
 	response, err := dc.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
 		Model:       dc.model,
@@ -200,9 +202,7 @@ func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.
 	if err != nil {
 		errStr := err.Error()
 
-		if dc.logger != nil {
-			dc.logger.Logf("API error: %s", errStr)
-		}
+		dc.logger.Logf("API error: %s", errStr)
 
 		switch {
 		case strings.Contains(errStr, "401"):
@@ -230,13 +230,11 @@ func (dc *LLMClient) callAPIWithMessages(ctx context.Context, messages []openai.
 		CompletionTokens: int(response.Usage.CompletionTokens),
 	}
 
-	if dc.logger != nil {
-		dc.logger.Logf(
-			"LLM API response: %d prompt tokens, %d completion tokens",
-			usage.PromptTokens,
-			usage.CompletionTokens,
-		)
-	}
+	dc.logger.Logf(
+		"LLM API response: %d prompt tokens, %d completion tokens",
+		usage.PromptTokens,
+		usage.CompletionTokens,
+	)
 
 	return outputText, usage, nil
 }

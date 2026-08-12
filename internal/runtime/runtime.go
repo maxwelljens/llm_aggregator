@@ -53,19 +53,20 @@ type Runtime struct {
 
 // Execute runs the four-stage pipeline: aggregate → process → LLM → (output is separate).
 func (r *Runtime) Execute(ctx context.Context) error {
-	// The logger/progress handler is injected, so we don't create it here.
-	// We wrap it in a context to pass to sub-modules that expect a *progress.Context.
-	progCtx := progress.NewContext(r.Progress)
+	// Guard against a nil Progress (bare Runtime values); NoopLogger produces no output.
+	if r.Progress == nil {
+		r.Progress = &progress.NoopLogger{}
+	}
 
-	feedAgg := aggregator.NewFeedAggregatorWithProgress(
+	feedAgg := aggregator.NewFeedAggregator(
 		r.MaxArticlesPerFeed,
 		r.MaxDaysOld,
-		5000,    // max content length
-		progCtx, // Pass the new progress context
+		5000, // max content length
+		r.Progress,
 	)
 
 	// Step 1: Aggregate feeds
-	r.Progress.SetStage("Aggregating feeds")
+	r.Progress.SetStage(progress.StageAggregating)
 
 	var articles []*aggregator.Article
 	var err error
@@ -109,7 +110,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	r.Progress.SetArticleCount(len(articles), 0)
 
 	// Step 2: Process content
-	r.Progress.SetStage("Processing articles")
+	r.Progress.SetStage(progress.StageProcessing)
 	r.Progress.SetSubStage(fmt.Sprintf("Filtering and sorting %d articles", len(articles)))
 
 	contentProc := processor.NewContentProcessor(
@@ -118,7 +119,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 		r.IncludeKeywords,
 		r.ExcludeKeywords,
 	)
-	contentProc.SetLogger(progCtx) // Pass the new progress context
+	contentProc.SetLogger(r.Progress)
 
 	processedArticles := contentProc.ProcessArticles(articles, "date", true)
 
@@ -134,7 +135,7 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	r.Progress.SetTokenEstimate(tokenEst, tokenEst)
 
 	// Step 3: Initialise LLM client
-	r.Progress.SetStage("Connecting to LLM")
+	r.Progress.SetStage(progress.StageConnecting)
 	r.Progress.SetSubStage("Using model: " + r.Model)
 
 	llm, err := llm.NewLLMClient(
@@ -148,10 +149,10 @@ func (r *Runtime) Execute(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error initialising LLM client: %w", err)
 	}
-	llm.SetLogger(progCtx) // Pass the new progress context
+	llm.SetLogger(r.Progress)
 
 	// Step 4: Get summary from LLM
-	r.Progress.SetStage("Getting summary")
+	r.Progress.SetStage(progress.StageGettingSummary)
 	r.Progress.SetSubStage(fmt.Sprintf("Sending %d articles to LLM", len(processedArticles)))
 	r.Progress.StartWaiting()
 

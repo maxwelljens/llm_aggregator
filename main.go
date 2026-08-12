@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/config"
@@ -16,6 +15,7 @@ import (
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/signals"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var (
@@ -42,7 +42,6 @@ func main() {
 
 	// FeedsFile and Prompt come from positional CLI args; everything else from viper
 	rt := config.ViperToRuntime(v, args.FeedsFile, args.Prompt)
-
 
 	if args.DryRun {
 		sh.Stop()
@@ -170,7 +169,7 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	// Fetch and process feeds (but don't call LLM)
 	fmt.Println(style.Info("Fetching feeds..."))
 
-	feedAgg := aggregator.NewFeedAggregatorWithProgress(
+	feedAgg := aggregator.NewFeedAggregator(
 		rt.MaxArticlesPerFeed,
 		rt.MaxDaysOld,
 		5000, // max content length

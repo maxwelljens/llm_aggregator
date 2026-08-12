@@ -46,21 +46,21 @@ const atomFeed = `<?xml version="1.0" encoding="UTF-8"?>
   </entry>
 </feed>`
 
-func TestNewFeedAggregatorWithProgress(t *testing.T) {
-	t.Run("with nil progress context", func(t *testing.T) {
-		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
+func TestNewFeedAggregator(t *testing.T) {
+	t.Run("with nil progress defaults to NoopLogger", func(t *testing.T) {
+		fa := NewFeedAggregator(10, 7, 5000, nil)
 		if fa == nil {
 			t.Error("Expected non-nil FeedAggregator")
 			return
 		}
-		if fa.progressCtx != nil {
-			t.Error("Expected nil progress context")
+		if _, ok := fa.progress.(*progress.NoopLogger); !ok {
+			t.Errorf("Expected NoopLogger progress, got %T", fa.progress)
 		}
 	})
 }
 
 func TestParseFeedsFromFileNotFound(t *testing.T) {
-	fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
+	fa := NewFeedAggregator(10, 7, 5000, nil)
 
 	_, err := fa.ParseFeedsFromFile("/nonexistent/path/to/feeds.txt")
 	if err == nil {
@@ -80,7 +80,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
+		fa := NewFeedAggregator(10, 7, 5000, nil)
 		articles, err := fa.ParseFeedsFromFile(tmpFile)
 
 		// Empty file should not cause an error
@@ -97,7 +97,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
+		fa := NewFeedAggregator(10, 7, 5000, nil)
 		articles, err := fa.ParseFeedsFromFile(tmpFile)
 
 		if err != nil {
@@ -114,7 +114,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 			t.Fatalf("Failed to create test file: %v", err)
 		}
 
-		fa := NewFeedAggregatorWithProgress(10, 7, 5000, nil)
+		fa := NewFeedAggregator(10, 7, 5000, nil)
 		// This will fail to fetch but shouldn't crash
 		_, err := fa.ParseFeedsFromFile(tmpFile)
 
@@ -129,8 +129,8 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 func TestArticleAgeFiltering(t *testing.T) {
 	// FeedAggregator configured for 7-day max article age
 	now := time.Now()
-	recentDate := now.Add(-3 * 24 * time.Hour)  // 3 days old
-	oldDate := now.Add(-10 * 24 * time.Hour)    // 10 days old
+	recentDate := now.Add(-3 * 24 * time.Hour) // 3 days old
+	oldDate := now.Add(-10 * 24 * time.Hour)   // 10 days old
 
 	t.Run("article within age limit", func(t *testing.T) {
 		article := &Article{
@@ -329,7 +329,7 @@ func TestEmptyFeedsFile(t *testing.T) {
 	}
 
 	// Use WithProgress to avoid nil pointer dereference
-	fa := NewFeedAggregatorWithProgress(10, 7, 5000, progress.NewContext(&progress.NoopLogger{}))
+	fa := NewFeedAggregator(10, 7, 5000, &progress.NoopLogger{})
 	articles, err := fa.ParseFeedsFromFile(tmpFile)
 
 	if err != nil {
@@ -341,7 +341,7 @@ func TestEmptyFeedsFile(t *testing.T) {
 }
 
 func TestParseFeedFromReader(t *testing.T) {
-	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := NewFeedAggregator(10, 0, 5000, nil)
 
 	articles, err := fa.ParseFeedFromReader(strings.NewReader(validRSSFeed), "test-reader")
 	if err != nil {
@@ -366,7 +366,7 @@ func TestParseFeedFromReader(t *testing.T) {
 }
 
 func TestParseFeedFromReaderAtom(t *testing.T) {
-	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := NewFeedAggregator(10, 0, 5000, nil)
 
 	articles, err := fa.ParseFeedFromReader(strings.NewReader(atomFeed), "atom-reader")
 	if err != nil {
@@ -385,7 +385,7 @@ func TestParseFeedFromReaderAtom(t *testing.T) {
 }
 
 func TestParseFeedFromReaderMalformed(t *testing.T) {
-	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := NewFeedAggregator(10, 0, 5000, nil)
 
 	// Truly malformed XML should return an error
 	_, err := fa.ParseFeedFromReader(strings.NewReader("not valid xml at all"), "malformed-reader")
@@ -395,13 +395,13 @@ func TestParseFeedFromReaderMalformed(t *testing.T) {
 }
 
 func TestParseFeedFromStdin(t *testing.T) {
-	fa := NewFeedAggregatorWithProgress(10, 0, 5000, nil)
+	fa := NewFeedAggregator(10, 0, 5000, nil)
 
 	// Read from a pipes reader to avoid blocking on real stdin
 	r, w, _ := os.Pipe()
 	go func() {
 		_, _ = w.WriteString(validRSSFeed) //nolint:errcheck
-		w.Close()                           //nolint:errcheck
+		w.Close()                          //nolint:errcheck
 	}()
 
 	articles, err := fa.ParseFeedFromReader(r, "stdin")

@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"charm.land/glamour/v2"
+	llmprogress "codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
 )
 
 // Regex pattern to match thinking tags (both <think> and </think>)
@@ -25,7 +26,7 @@ const (
 )
 
 var (
-	colorSubtle        = lipgloss.Color("7")   // Gray (dim text)
+	colorSubtle    = lipgloss.Color("7")  // Gray (dim text)
 	colorHighlight = lipgloss.Color("13") // Magenta (status)
 	colorSuccess   = lipgloss.Color("2")  // Green (completion)
 	colorError     = lipgloss.Color("1")  // Red (errors)
@@ -50,35 +51,35 @@ var (
 
 	stepNames = []string{
 		"Initialising",
-		"Aggregating feeds",
-		"Processing articles",
-		"Connecting to LLM",
-		"Getting summary",
+		string(llmprogress.StageAggregating),
+		string(llmprogress.StageProcessing),
+		string(llmprogress.StageConnecting),
+		string(llmprogress.StageGettingSummary),
 		"Formatting output",
 		"Complete",
 	}
 
 	// Infobar keybinds - stylised for easy modification
 	infobarKeybindStyle = lipgloss.NewStyle().
-		Foreground(colorSubtle).
-		Bold(true)
+				Foreground(colorSubtle).
+				Bold(true)
 
 	infobarSeparatorStyle = lipgloss.NewStyle().
-		Foreground(colorSubtle).
-		Italic(false)
+				Foreground(colorSubtle).
+				Italic(false)
 
 	infobarActionStyle = lipgloss.NewStyle().
-		Foreground(colorSubtle).
-		Italic(true)
+				Foreground(colorSubtle).
+				Italic(true)
 
 	// Thinking toggle indicator (separate element above keybinds)
 	thinkingOnStyle = lipgloss.NewStyle().
-		Foreground(colorHighlight).
-		Bold(true)
+			Foreground(colorHighlight).
+			Bold(true)
 
 	thinkingOffStyle = lipgloss.NewStyle().
-		Foreground(colorSubtle).
-		Italic(true)
+				Foreground(colorSubtle).
+				Italic(true)
 )
 
 type StageMsg string

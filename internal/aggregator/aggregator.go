@@ -24,12 +24,15 @@ type FeedAggregator struct {
 	maxContentLength   int
 	client             *http.Client
 	userAgent          string
-	progressCtx        *progress.Context
+	progress           progress.Progress
 }
 
-// NewFeedAggregatorWithProgress creates a FeedAggregator with progress reporting.
-// progressCtx may be nil (e.g. in dry-run mode with verbose disabled).
-func NewFeedAggregatorWithProgress(maxArticlesPerFeed, maxDaysOld, maxContentLength int, progressCtx *progress.Context) *FeedAggregator {
+// NewFeedAggregator creates a FeedAggregator with progress reporting.
+// prog may be nil; nil means no output (NoopLogger).
+func NewFeedAggregator(maxArticlesPerFeed, maxDaysOld, maxContentLength int, prog progress.Progress) *FeedAggregator {
+	if prog == nil {
+		prog = &progress.NoopLogger{}
+	}
 	return &FeedAggregator{
 		maxArticlesPerFeed: maxArticlesPerFeed,
 		maxDaysOld:         maxDaysOld,
@@ -37,8 +40,8 @@ func NewFeedAggregatorWithProgress(maxArticlesPerFeed, maxDaysOld, maxContentLen
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		userAgent:   "LLM-Aggregator/0.1.0 (+https://codeberg.org/maxwelljensen/llm-aggregator)",
-		progressCtx: progressCtx,
+		userAgent: "LLM-Aggregator/0.1.0 (+https://codeberg.org/maxwelljensen/llm-aggregator)",
+		progress:  prog,
 	}
 }
 
@@ -73,8 +76,8 @@ func (fa *FeedAggregator) ParseFeedFromReader(reader io.Reader, sourceName strin
 		feedTitle = sourceName
 	}
 
-	if fa.progressCtx != nil {
-		fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
+	if fa.progress != nil {
+		fa.progress.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
 	}
 
 	var cutoffTime time.Time
@@ -112,8 +115,8 @@ func (fa *FeedAggregator) parseFeedsFromReader(reader io.Reader, sourceName stri
 		}
 	}
 
-	if fa.progressCtx != nil {
-		fa.progressCtx.Logf("Found %d feed URLs in %s", len(feedURLs), sourceName)
+	if fa.progress != nil {
+		fa.progress.Logf("Found %d feed URLs in %s", len(feedURLs), sourceName)
 	}
 
 	// Use mutex to protect shared state
@@ -133,13 +136,13 @@ func (fa *FeedAggregator) parseFeedsFromReader(reader io.Reader, sourceName stri
 		sem <- struct{}{} // Acquire semaphore
 		g.Go(func() error {
 			defer func() { <-sem }() // Release semaphore
-			if fa.progressCtx != nil {
-				fa.progressCtx.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
+			if fa.progress != nil {
+				fa.progress.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
 			}
 			feedArticles, err := fa.ParseFeed(feedURL)
 			if err != nil {
-				if fa.progressCtx != nil {
-					fa.progressCtx.Warningf("Failed to parse feed %s: %v", feedURL, err)
+				if fa.progress != nil {
+					fa.progress.Warningf("Failed to parse feed %s: %v", feedURL, err)
 				}
 				mu.Lock()
 				feedErrors = append(feedErrors, fmt.Sprintf("%s: %v", feedURL, err))
@@ -158,8 +161,8 @@ func (fa *FeedAggregator) parseFeedsFromReader(reader io.Reader, sourceName stri
 	}
 
 	if len(feedErrors) > 0 {
-		if fa.progressCtx != nil {
-			fa.progressCtx.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
+		if fa.progress != nil {
+			fa.progress.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
 		}
 	}
 
@@ -181,8 +184,8 @@ func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
 		feedTitle = feedURL
 	}
 
-	if fa.progressCtx != nil {
-		fa.progressCtx.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
+	if fa.progress != nil {
+		fa.progress.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
 	}
 
 	var cutoffTime time.Time
@@ -219,8 +222,8 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 
 	// Check if article is too old
 	if !cutoffTime.IsZero() && !published.IsZero() && published.Before(cutoffTime) {
-		if fa.progressCtx != nil {
-			fa.progressCtx.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
+		if fa.progress != nil {
+			fa.progress.Debugf("Skipping old article: %s (%s)", title, published.Format("2006-01-02"))
 		}
 		return nil
 	}

@@ -16,7 +16,7 @@ type ContentProcessor struct {
 	maxContentPerArticle int
 	filterKeywords       []string
 	excludeKeywords      []string
-	logger               *progress.Context
+	logger               progress.Progress
 }
 
 // NewContentProcessor creates a processor that filters and truncates articles.
@@ -38,11 +38,15 @@ func NewContentProcessor(maxTotalArticles, maxContentPerArticle int, filterKeywo
 		maxContentPerArticle: maxContentPerArticle,
 		filterKeywords:       filterLower,
 		excludeKeywords:      excludeLower,
+		logger:               &progress.NoopLogger{},
 	}
 }
 
-// SetLogger sets the logger for the processor
-func (cp *ContentProcessor) SetLogger(logger *progress.Context) {
+// SetLogger sets the logger for the processor; nil means no output.
+func (cp *ContentProcessor) SetLogger(logger progress.Progress) {
+	if logger == nil {
+		logger = &progress.NoopLogger{}
+	}
 	cp.logger = logger
 }
 
@@ -50,9 +54,7 @@ func (cp *ContentProcessor) SetLogger(logger *progress.Context) {
 // then converts each article to a map for the LLM.
 func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sortBy string, reverse bool) []map[string]any {
 	if len(articles) == 0 {
-		if cp.logger != nil {
-			cp.logger.Logf("Warning: No articles to process")
-		}
+		cp.logger.Logf("Warning: No articles to process")
 		return []map[string]any{}
 	}
 
@@ -64,18 +66,14 @@ func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sort
 
 	// Limit total articles
 	if len(sortedArticles) > cp.maxTotalArticles {
-		if cp.logger != nil {
-			cp.logger.Logf("Limiting articles from %d to %d", len(sortedArticles), cp.maxTotalArticles)
-		}
+		cp.logger.Logf("Limiting articles from %d to %d", len(sortedArticles), cp.maxTotalArticles)
 		sortedArticles = sortedArticles[:cp.maxTotalArticles]
 	}
 
 	// Prepare articles for LLM
 	processed := cp.prepareForLLM(sortedArticles)
 
-	if cp.logger != nil {
-		cp.logger.Logf("Processed %d articles (from %d original)", len(processed), len(articles))
-	}
+	cp.logger.Logf("Processed %d articles (from %d original)", len(processed), len(articles))
 
 	return processed
 }
@@ -96,9 +94,7 @@ func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*ag
 			articleText := strings.ToLower(article.Title + " " + article.Content)
 			for _, keyword := range cp.excludeKeywords {
 				if strings.Contains(articleText, keyword) {
-					if cp.logger != nil {
-						cp.logger.Logf("Excluding article due to keyword '%s': %s", keyword, article.Title)
-					}
+					cp.logger.Logf("Excluding article due to keyword '%s': %s", keyword, article.Title)
 					include = false
 					break
 				}
@@ -121,13 +117,10 @@ func (cp *ContentProcessor) filterArticles(articles []*aggregator.Article) []*ag
 		}
 	}
 
-	if cp.logger != nil {
-		cp.logger.Logf(
-			"Filtered %d articles to %d (inclusion: %v, exclusion: %v)",
-			len(articles), len(filtered), cp.filterKeywords, cp.excludeKeywords,
-		)
-	}
-
+	cp.logger.Logf(
+		"Filtered %d articles to %d (inclusion: %v, exclusion: %v)",
+		len(articles), len(filtered), cp.filterKeywords, cp.excludeKeywords,
+	)
 	return filtered
 }
 
@@ -237,9 +230,7 @@ func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any, model 
 					tokens, err := tokeniser.CountTokens(str, model)
 					if err != nil {
 						// Fallback to rough estimate on error
-						if cp.logger != nil {
-							cp.logger.Logf("Warning: token count error for %s: %v", field, err)
-						}
+						cp.logger.Logf("Warning: token count error for %s: %v", field, err)
 						totalTokens += len(str) / 4
 						continue
 					}
@@ -249,9 +240,7 @@ func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any, model 
 		}
 	}
 
-	if cp.logger != nil {
-		cp.logger.Logf("Estimated tokens: %d", totalTokens)
-	}
+	cp.logger.Logf("Estimated tokens: %d", totalTokens)
 
 	return totalTokens
 }

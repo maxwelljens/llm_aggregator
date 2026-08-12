@@ -21,7 +21,7 @@ func NewTUIProgress(p *tea.Program) *TUIProgress {
 }
 
 // SetStage sends a message to update the main stage.
-func (tp *TUIProgress) SetStage(stage string) {
+func (tp *TUIProgress) SetStage(stage progress.Stage) {
 	tp.program.Send(StageMsg(stage))
 }
 
@@ -63,9 +63,3 @@ func (tp *TUIProgress) Run() error {
 	_, err := tp.program.Run()
 	return err
 }
-
-// Context returns a progress.Context for the TUI
-func (tp *TUIProgress) Context() *progress.Context {
-	return progress.NewContext(tp)
-}
-
