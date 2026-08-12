@@ -293,10 +293,10 @@ func TestBindCLIArgsWithPointers(t *testing.T) {
 }
 
 // Helper functions for creating pointers
-func strPtr(s string) *string { return &s }
-func intPtr(i int) *int { return &i }
+func strPtr(s string) *string     { return &s }
+func intPtr(i int) *int           { return &i }
 func floatPtr(f float64) *float64 { return &f }
-func boolPtr(b bool) *bool { return &b }
+func boolPtr(b bool) *bool        { return &b }
 
 // TestConfigParsingAlwaysPasses ensures that parsing of options always passes.
 // This tests the integration between CLI args, config loading, and Viper.
@@ -357,9 +357,9 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 				"--max-days-old":          "3",
 				"--max-total-articles":    "15",
 				"--include-keywords":      "ai,ml",
-				"--exclude-keywords":     "advertisement",
+				"--exclude-keywords":      "advertisement",
 				"--max-tokens":            "1000",
-				"--temperature":          "0.3",
+				"--temperature":           "0.3",
 				"--output":                "json",
 				"--stdin":                 "",
 				"--plain":                 "",
@@ -467,7 +467,7 @@ func TestBindCLIArgs(t *testing.T) {
 	v2.SetDefault("temperature", 0.7)
 
 	args2 := map[string]any{
-		"model":      "", // Empty string should not override
+		"model":       "", // Empty string should not override
 		"temperature": 0,  // Zero should not override
 	}
 	BindCLIArgs(v2, args2)
@@ -477,5 +477,63 @@ func TestBindCLIArgs(t *testing.T) {
 	}
 	if v2.GetFloat64("temperature") != 0.7 {
 		t.Errorf("temperature = %f, want %f (zero should not override)", v2.GetFloat64("temperature"), 0.7)
+	}
+}
+func TestParseKeywords(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "empty string",
+			input:    "",
+			expected: nil,
+		},
+		{
+			name:     "single keyword",
+			input:    "linux",
+			expected: []string{"linux"},
+		},
+		{
+			name:     "multiple keywords",
+			input:    "linux,opensource,free-software",
+			expected: []string{"linux", "opensource", "free-software"},
+		},
+		{
+			name:     "keywords with spaces",
+			input:    "linux, open source, free software",
+			expected: []string{"linux", "open source", "free software"},
+		},
+		{
+			name:     "keywords with extra spaces",
+			input:    "  linux  ,  open source  ,  free software  ",
+			expected: []string{"linux", "open source", "free software"},
+		},
+		{
+			name:     "keywords with empty items",
+			input:    "linux,,opensource",
+			expected: []string{"linux", "opensource"},
+		},
+		{
+			name:     "keywords with only empty items",
+			input:    ",,",
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseKeywords(tt.input)
+			if len(result) != len(tt.expected) {
+				t.Errorf("parseKeywords(%q) length = %d, want %d", tt.input, len(result), len(tt.expected))
+				return
+			}
+			for i, kw := range result {
+				if kw != tt.expected[i] {
+					t.Errorf("parseKeywords(%q)[%d] = %q, want %q", tt.input, i, kw, tt.expected[i])
+				}
+			}
+		})
 	}
 }

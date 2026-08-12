@@ -5,46 +5,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 
-	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
 )
-
-// Config holds application configuration sourced from TOML, environment variables, and CLI arguments.
-// See config.GetViper for precedence and singleton behaviour.
-type Config struct {
-	// Feed aggregation options
-	MaxArticlesPerFeed int    `mapstructure:"max_articles_per_feed"`
-	MaxDaysOld         int    `mapstructure:"max_days_old"`
-	MaxTotalArticles   int    `mapstructure:"max_total_articles"`
-	IncludeKeywords    string `mapstructure:"include_keywords"`
-	ExcludeKeywords    string `mapstructure:"exclude_keywords"`
-
-	// Feed input
-	Stdin bool `mapstructure:"stdin"`
-
-	// LLM API options
-	APIKey      string  `mapstructure:"api_key"`
-	BaseURL     string  `mapstructure:"base_url"`
-	Model       string  `mapstructure:"model"`
-	MaxTokens   int     `mapstructure:"max_tokens"`
-	Temperature float64 `mapstructure:"temperature"`
-	Timeout     int     `mapstructure:"timeout"`
-
-	// System prompt
-	SystemPrompt string `mapstructure:"system_prompt"`
-
-	// Output options
-	Output          string `mapstructure:"output"`
-	OutputFile      string `mapstructure:"output_file"`
-	IncludeArticles bool   `mapstructure:"include_articles"`
-	Plain           bool   `mapstructure:"plain"`
-}
 
 // GetViper returns the global viper instance.
 // Precedence (highest first): CLI flags → environment variables → config file → defaults.
@@ -186,10 +155,10 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	includeKeywords := v.GetString("include_keywords")
 	excludeKeywords := v.GetString("exclude_keywords")
 	if includeKeywords != "" {
-		rt.IncludeKeywords = cli.ParseKeywords(includeKeywords)
+		rt.IncludeKeywords = parseKeywords(includeKeywords)
 	}
 	if excludeKeywords != "" {
-		rt.ExcludeKeywords = cli.ParseKeywords(excludeKeywords)
+		rt.ExcludeKeywords = parseKeywords(excludeKeywords)
 	}
 	// LLM API options
 	rt.APIKey = v.GetString("api_key")
@@ -210,7 +179,24 @@ func ViperToRuntime(v *viper.Viper, feedsFile, prompt string) *runtime.Runtime {
 	return rt
 }
 
+// parseKeywords splits a comma-separated keyword string into a trimmed list.
+// Empty tokens resulting from malformed input are discarded.
+func parseKeywords(keywordString string) []string {
+	if keywordString == "" {
+		return nil
+	}
+	keywords := strings.Split(keywordString, ",")
+	result := make([]string, 0, len(keywords))
+	for _, kw := range keywords {
+		if trimmed := strings.TrimSpace(kw); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
 // bindEnvVars binds environment variables to viper keys.
+//
 //nolint:errcheck // viper.BindEnv always returns nil in practice
 func bindEnvVars(v *viper.Viper) {
 	// Feed aggregation options

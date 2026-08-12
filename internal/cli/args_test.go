@@ -20,7 +20,7 @@ func TestFeedsFileParsing(t *testing.T) {
 			setupFunc: func() {
 				// Create a temporary feeds file
 				f, _ := os.Create("/tmp/feeds.txt") //nolint:errcheck
-				_ = f.Close()                      //nolint:errcheck
+				_ = f.Close()                       //nolint:errcheck
 			},
 			cleanupFunc: func() {
 				_ = os.Remove("/tmp/feeds.txt") //nolint:errcheck
@@ -150,13 +150,13 @@ func TestPromptParsing(t *testing.T) {
 func TestAPIKeyParsing(t *testing.T) {
 	strPtr := func(s string) *string { return &s }
 	tests := []struct {
-		name          string
-		apiKey        string
-		envKey        string
-		wantAPIKey    *string
-		wantErr       bool
-		setupFunc     func()
-		cleanupFunc   func()
+		name        string
+		apiKey      string
+		envKey      string
+		wantAPIKey  *string
+		wantErr     bool
+		setupFunc   func()
+		cleanupFunc func()
 	}{
 		{
 			name:       "explicit api key",
@@ -347,12 +347,12 @@ func TestModelParsing(t *testing.T) {
 func TestBaseURLParsing(t *testing.T) {
 	strPtr := func(s string) *string { return &s }
 	tests := []struct {
-		name         string
-		baseURL      string
-		wantBaseURL  *string
-		wantErr      bool
-		setupFunc    func()
-		cleanupFunc  func()
+		name        string
+		baseURL     string
+		wantBaseURL *string
+		wantErr     bool
+		setupFunc   func()
+		cleanupFunc func()
 	}{
 		{
 			name:        "default base URL",
@@ -435,23 +435,23 @@ func TestArgsToViperMap(t *testing.T) {
 	floatPtr := func(f float64) *float64 { return &f }
 
 	args := &Args{
-		FeedsFile:           "/tmp/feeds.txt",
-		Stdin:               true,
-		Prompt:              "Test prompt",
-		MaxArticlesPerFeed:  intPtr(5),
-		MaxDaysOld:          intPtr(14),
-		MaxTotalArticles:    intPtr(50),
-		IncludeKeywords:     "linux,opensource",
-		ExcludeKeywords:     "advertisement",
-		APIKey:              strPtr("sk-test-key"),
-		Model:               strPtr("custom-model"),
-		MaxTokens:           intPtr(2000),
-		Temperature:         floatPtr(0.5),
-		SystemPrompt:        "Custom system prompt",
-		Output:              "json",
-		OutputFile:          "/tmp/output.json",
-		IncludeArticles:     true,
-		Plain:               true,
+		FeedsFile:          "/tmp/feeds.txt",
+		Stdin:              true,
+		Prompt:             "Test prompt",
+		MaxArticlesPerFeed: intPtr(5),
+		MaxDaysOld:         intPtr(14),
+		MaxTotalArticles:   intPtr(50),
+		IncludeKeywords:    "linux,opensource",
+		ExcludeKeywords:    "advertisement",
+		APIKey:             strPtr("sk-test-key"),
+		Model:              strPtr("custom-model"),
+		MaxTokens:          intPtr(2000),
+		Temperature:        floatPtr(0.5),
+		SystemPrompt:       "Custom system prompt",
+		Output:             "json",
+		OutputFile:         "/tmp/output.json",
+		IncludeArticles:    true,
+		Plain:              true,
 	}
 
 	viperMap := args.ToViperMap()
@@ -483,65 +483,6 @@ func TestArgsToViperMap(t *testing.T) {
 				t.Errorf("Key %q not found in viper map", tt.key)
 			} else if got != tt.expected {
 				t.Errorf("viperMap[%q] = %v, want %v", tt.key, got, tt.expected)
-			}
-		})
-	}
-}
-
-func TestParseKeywords(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected []string
-	}{
-		{
-			name:     "empty string",
-			input:    "",
-			expected: nil,
-		},
-		{
-			name:     "single keyword",
-			input:    "linux",
-			expected: []string{"linux"},
-		},
-		{
-			name:     "multiple keywords",
-			input:    "linux,opensource,free-software",
-			expected: []string{"linux", "opensource", "free-software"},
-		},
-		{
-			name:     "keywords with spaces",
-			input:    "linux, open source, free software",
-			expected: []string{"linux", "open source", "free software"},
-		},
-		{
-			name:     "keywords with extra spaces",
-			input:    "  linux  ,  open source  ,  free software  ",
-			expected: []string{"linux", "open source", "free software"},
-		},
-		{
-			name:     "keywords with empty items",
-			input:    "linux,,opensource",
-			expected: []string{"linux", "opensource"},
-		},
-		{
-			name:     "keywords with only empty items",
-			input:    ",,",
-			expected: nil,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ParseKeywords(tt.input)
-			if len(result) != len(tt.expected) {
-				t.Errorf("ParseKeywords(%q) length = %d, want %d", tt.input, len(result), len(tt.expected))
-				return
-			}
-			for i, kw := range result {
-				if kw != tt.expected[i] {
-					t.Errorf("ParseKeywords(%q)[%d] = %q, want %q", tt.input, i, kw, tt.expected[i])
-				}
 			}
 		})
 	}

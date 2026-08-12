@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/alexflint/go-arg"
 )
@@ -17,7 +16,7 @@ var (
 type Args struct {
 	// Feed input
 	FeedsFile string `arg:"-f,--feeds-file" help:"Path to file containing RSS feed URLs (one per line)"`
-	Stdin      bool   `arg:"--stdin" help:"Read a single RSS/Atom feed from stdin (can be combined with --feeds-file)"`
+	Stdin     bool   `arg:"--stdin" help:"Read a single RSS/Atom feed from stdin (can be combined with --feeds-file)"`
 	Prompt    string `arg:"-p,--prompt,required" help:"User prompt for summarisation/analysis"`
 
 	// Feed aggregation options
@@ -59,22 +58,6 @@ func (a *Args) Version() string {
 // Description returns the program description.
 func (a *Args) Description() string {
 	return "LLM Aggregator - Aggregate RSS feeds and summarise with LLM API"
-}
-
-// ParseKeywords splits a comma-separated keyword string into a trimmed list.
-// Empty tokens resulting from malformed input are discarded.
-func ParseKeywords(keywordString string) []string {
-	if keywordString == "" {
-		return nil
-	}
-	keywords := strings.Split(keywordString, ",")
-	result := make([]string, 0, len(keywords))
-	for _, kw := range keywords {
-		if trimmed := strings.TrimSpace(kw); trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
 }
 
 // ParseArgs parses command line arguments.

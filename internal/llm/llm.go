@@ -161,10 +161,7 @@ func (dc *LLMClient) prepareContext(articles []map[string]any) string {
 
 func (dc *LLMClient) createMessages(context, userPrompt, systemPrompt string) []openai.ChatCompletionMessageParamUnion {
 	if systemPrompt == "" {
-		systemPrompt = `You are an expert analyst and summariser.
-You analyse content from multiple sources and provide
-concise, insightful summaries based on user requests.
-Focus on key points, trends, and important information.`
+		systemPrompt = defaults.DefaultSystemPrompt
 	}
 
 	// Combine context with user prompt

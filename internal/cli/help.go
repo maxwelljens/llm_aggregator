@@ -3,10 +3,12 @@ package cli
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/style"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type HelpOption struct {
@@ -149,18 +151,18 @@ func BuildStyledHelp(args *Args) string {
 					Short:       "-n",
 					Name:        "--max-articles-per-feed N",
 					Description: "Maximum articles to fetch from each feed",
-					Default:     "10",
+					Default:     strconv.Itoa(defaults.DefaultMaxArticlesPerFeed),
 				},
 				{
 					Short:       "-d",
 					Name:        "--max-days-old N",
 					Description: "Only include articles from the last N days (0 for all)",
-					Default:     "7",
+					Default:     strconv.Itoa(defaults.DefaultMaxDaysOld),
 				},
 				{
 					Name:        "--max-total-articles N",
 					Description: "Maximum total articles to process across all feeds",
-					Default:     "20",
+					Default:     strconv.Itoa(defaults.DefaultMaxTotalArticles),
 				},
 			},
 		},
@@ -189,28 +191,28 @@ func BuildStyledHelp(args *Args) string {
 				{
 					Name:        "--base-url URL",
 					Description: "API base URL",
-					Default:     "https://api.deepseek.com",
+					Default:     defaults.DefaultBaseURL,
 				},
 				{
 					Short:       "-m",
 					Name:        "--model MODEL",
 					Description: "LLM model to use",
-					Default:     "deepseek-chat",
+					Default:     defaults.DefaultModel,
 				},
 				{
 					Name:        "--max-tokens N",
 					Description: "Maximum tokens in LLM response",
-					Default:     "4000",
+					Default:     strconv.Itoa(defaults.DefaultMaxTokens),
 				},
 				{
 					Name:        "--temperature VALUE",
 					Description: "Sampling temperature (0.0 to 1.0)",
-					Default:     "0.7",
+					Default:     strconv.FormatFloat(defaults.DefaultTemperature, 'f', -1, 64),
 				},
 				{
 					Name:        "--timeout N",
-					Description: "LLM request timeout in seconds (default: 300)",
-					Default:     "300",
+					Description: "LLM request timeout in seconds",
+					Default:     strconv.Itoa(defaults.DefaultLLMTimeout),
 				},
 				{
 					Name:        "--system-prompt TEXT",
@@ -226,7 +228,7 @@ func BuildStyledHelp(args *Args) string {
 					Name:        "--output FORMAT",
 					Description: "Output format",
 					Type:        "text|markdown|json",
-					Default:     "text",
+					Default:     defaults.DefaultOutput,
 				},
 				{
 					Name:        "--output-file FILE",
