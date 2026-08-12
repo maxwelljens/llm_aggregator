@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -118,13 +119,13 @@ func TestFilterArticlesByIncludeKeywords(t *testing.T) {
 		titles[i] = a.Title
 	}
 
-	if !containsString(titles, "Tech Article") {
+	if !slices.Contains(titles, "Tech Article") {
 		t.Error("Expected Tech Article to be included")
 	}
-	if !containsString(titles, "AI Technology") {
+	if !slices.Contains(titles, "AI Technology") {
 		t.Error("Expected AI Technology to be included")
 	}
-	if containsString(titles, "Sports Article") {
+	if slices.Contains(titles, "Sports Article") {
 		t.Error("Sports Article should be excluded")
 	}
 }
@@ -148,7 +149,7 @@ func TestFilterArticlesByExcludeKeywords(t *testing.T) {
 		titles[i] = a.Title
 	}
 
-	if containsString(titles, "Advertisement") {
+	if slices.Contains(titles, "Advertisement") {
 		t.Error("Advertisement should be excluded")
 	}
 }
@@ -345,10 +346,10 @@ func TestMixedIncludeExclude(t *testing.T) {
 		titles[i] = a.Title
 	}
 
-	if !containsString(titles, "Tech News") {
+	if !slices.Contains(titles, "Tech News") {
 		t.Error("Expected Tech News")
 	}
-	if !containsString(titles, "Sports Tech") {
+	if !slices.Contains(titles, "Sports Tech") {
 		t.Error("Expected Sports Tech")
 	}
 }
@@ -392,13 +393,4 @@ func createTestArticles() []*aggregator.Article {
 			SourceFeed: "News Feed",
 		},
 	}
-}
-
-func containsString(list []string, s string) bool {
-	for _, item := range list {
-		if item == s {
-			return true
-		}
-	}
-	return false
 }

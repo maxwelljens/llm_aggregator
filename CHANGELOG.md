@@ -6,6 +6,38 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Signal handling no longer polls in a busy loop: `SignalHandler.Done()` is a
+  channel closed on the first signal, which cancels the execution context.
+- The `progress.Context` pass-through wrapper is gone; components receive
+  `progress.Progress` directly and default to a no-op logger. Pipeline stages
+  are typed constants shared with the TUI, so a stage-name mismatch is a
+  compile error instead of a frozen progress bar.
+- `Article` is now the typed currency of the pipeline: the processor no longer
+  degrades articles to `map[string]any`, the LLM renders typed fields without
+  type-switching, and the output formatter takes a typed `Data` envelope.
+  Content truncation happens once, in the processor.
+- `Runtime.Execute` returns a `Result` (articles, summary, token estimate)
+  instead of mutating shared state, and accepts an injectable `Summariser`
+  seam. Dry-run is a flag on the same pipeline rather than a reimplementation.
+- Dead code removed: `Article.ToMap`, the unused `Config` struct,
+  `Runtime.Interrupted`/`WasInterrupted`/`Error`, unused style variables, and
+  duplicated default values in help text and the LLM system prompt.
+
+### Fixed
+
+- Deprecated `gofeed` `item.Author` replaced with `item.Authors`.
+- The duplicated date-sort comparator in the processor is a single helper.
+
+### Added
+
+- `Runtime.Execute` is now tested end-to-end: all four feed-source branches,
+  dry-run, and summariser error propagation run against a fake summariser.
+- Coverage for LLM context rendering and message construction.
+
 ## [1.0.2] - 2026-05-04
 
 ### Changed

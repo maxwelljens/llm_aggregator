@@ -230,10 +230,10 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 
 	// Extract author
 	author := ""
-	if item.Author != nil {
-		author = item.Author.Name
+	if len(item.Authors) > 0 {
+		author = item.Authors[0].Name
 		if author == "" {
-			author = item.Author.Email
+			author = item.Authors[0].Email
 		}
 	}
 	if author == "" && item.DublinCoreExt != nil && len(item.DublinCoreExt.Creator) > 0 {

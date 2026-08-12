@@ -3,7 +3,6 @@ package processor
 import (
 	"sort"
 	"strings"
-	"time"
 
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
@@ -144,21 +143,7 @@ func (cp *ContentProcessor) sortArticles(articles []*aggregator.Article, sortBy 
 
 	switch strings.ToLower(sortBy) {
 	case "date":
-		// Zero times sort to the end when reverse=false (oldest last)
-		sort.Slice(sortedArticles, func(i, j int) bool {
-			iTime := sortedArticles[i].Published
-			jTime := sortedArticles[j].Published
-			if iTime.IsZero() {
-				iTime = time.Time{}
-			}
-			if jTime.IsZero() {
-				jTime = time.Time{}
-			}
-			if reverse {
-				return iTime.After(jTime)
-			}
-			return iTime.Before(jTime)
-		})
+		sortByDate(sortedArticles, reverse)
 	case "title":
 		sort.Slice(sortedArticles, func(i, j int) bool {
 			iTitle := strings.ToLower(sortedArticles[i].Title)
@@ -179,23 +164,23 @@ func (cp *ContentProcessor) sortArticles(articles []*aggregator.Article, sortBy 
 		})
 	default:
 		// Unknown sort key: fall back to date order
-		sort.Slice(sortedArticles, func(i, j int) bool {
-			iTime := sortedArticles[i].Published
-			jTime := sortedArticles[j].Published
-			if iTime.IsZero() {
-				iTime = time.Time{}
-			}
-			if jTime.IsZero() {
-				jTime = time.Time{}
-			}
-			if reverse {
-				return iTime.After(jTime)
-			}
-			return iTime.Before(jTime)
-		})
+		sortByDate(sortedArticles, reverse)
 	}
 
 	return sortedArticles
+}
+
+// sortByDate orders articles by publication date. Zero times sort last
+// regardless of direction since they are neither Before nor After anything.
+func sortByDate(articles []*aggregator.Article, reverse bool) {
+	sort.Slice(articles, func(i, j int) bool {
+		iTime := articles[i].Published
+		jTime := articles[j].Published
+		if reverse {
+			return iTime.After(jTime)
+		}
+		return iTime.Before(jTime)
+	})
 }
 
 // EstimateTokenCount uses tiktoken to estimate total token count across all articles.

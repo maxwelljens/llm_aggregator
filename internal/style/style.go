@@ -100,12 +100,6 @@ func Filepath(filepath string) string {
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Render(filepath)
 }
 
-// FilepathStyled returns a lipgloss style for filepaths that can be applied to custom text.
-var FilepathStyled = lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan))
-
-// URLStyled returns a lipgloss style for URLs that can be applied to custom text.
-var URLStyled = lipgloss.NewStyle().Foreground(lipgloss.Color(Blue)).Underline(true)
-
 // Label returns a styled label/key in magenta and bold.
 func Label(text string) string {
 	if NoColor() {
@@ -116,9 +110,6 @@ func Label(text string) string {
 		Bold(true).
 		Render(text)
 }
-
-// LabelStyled returns a lipgloss style for labels.
-var LabelStyled = lipgloss.NewStyle().Foreground(lipgloss.Color(Magenta)).Bold(true)
 
 // Heading returns a styled heading.
 func Heading(text string) string {
@@ -132,9 +123,6 @@ func Value(text string) string {
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan)).Render(text)
 }
-
-// ValueStyled returns a lipgloss style for values.
-var ValueStyled = lipgloss.NewStyle().Foreground(lipgloss.Color(Cyan))
 
 // Info returns a styled info message in cyan.
 func Info(text string) string {
