@@ -282,7 +282,7 @@ func TestArticleLinkExtraction(t *testing.T) {
 }
 
 func TestArticleContentExtraction(t *testing.T) {
-	t.Run("long content is truncated", func(t *testing.T) {
+	t.Run("content is preserved on the article", func(t *testing.T) {
 		longContent := strings.Repeat("x", 600)
 		article := &Article{
 			Title:   "Long Content Article",
@@ -290,17 +290,10 @@ func TestArticleContentExtraction(t *testing.T) {
 			Content: longContent,
 		}
 
-		// ToMap truncates content over 500 chars
-		m := article.ToMap()
-		content := m["content"].(string)
-
-		// 500 chars + "... [truncated]" (11 chars) = 511 chars
-		expectedLen := 500 + len("... [truncated]")
-		if len(content) != expectedLen {
-			t.Errorf("Expected %d chars (500 + truncation), got %d", expectedLen, len(content))
-		}
-		if !strings.HasSuffix(content, "... [truncated]") {
-			t.Errorf("Expected content to end with truncation marker")
+		// The aggregator truncates during extraction (see TestParseFeedsFileContentTruncation);
+		// the Article itself stores content verbatim.
+		if article.Content != longContent {
+			t.Errorf("Expected content to be preserved verbatim")
 		}
 	})
 
@@ -312,9 +305,8 @@ func TestArticleContentExtraction(t *testing.T) {
 			Content: shortContent,
 		}
 
-		m := article.ToMap()
-		if m["content"] != shortContent {
-			t.Errorf("Content should not be truncated: %s", m["content"])
+		if article.Content != shortContent {
+			t.Errorf("Content should not be truncated: %s", article.Content)
 		}
 	})
 }

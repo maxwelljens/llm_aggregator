@@ -50,12 +50,12 @@ func (cp *ContentProcessor) SetLogger(logger progress.Progress) {
 	cp.logger = logger
 }
 
-// ProcessArticles applies keyword filtering, sorting, and a ceiling on total count,
-// then converts each article to a map for the LLM.
-func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sortBy string, reverse bool) []map[string]any {
+// ProcessArticles applies keyword filtering, sorting, a ceiling on total count,
+// and content truncation, returning the surviving articles for the LLM.
+func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sortBy string, reverse bool) []*aggregator.Article {
 	if len(articles) == 0 {
 		cp.logger.Logf("Warning: No articles to process")
-		return []map[string]any{}
+		return []*aggregator.Article{}
 	}
 
 	// Filter articles
@@ -70,12 +70,22 @@ func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sort
 		sortedArticles = sortedArticles[:cp.maxTotalArticles]
 	}
 
-	// Prepare articles for LLM
-	processed := cp.prepareForLLM(sortedArticles)
+	// Truncate content for the LLM
+	cp.truncateContent(sortedArticles)
 
-	cp.logger.Logf("Processed %d articles (from %d original)", len(processed), len(articles))
+	cp.logger.Logf("Processed %d articles (from %d original)", len(sortedArticles), len(articles))
 
-	return processed
+	return sortedArticles
+}
+
+// truncateContent caps each article's content at maxContentPerArticle.
+// This is the single truncation policy for LLM-bound content.
+func (cp *ContentProcessor) truncateContent(articles []*aggregator.Article) {
+	for _, article := range articles {
+		if len(article.Content) > cp.maxContentPerArticle {
+			article.Content = article.Content[:cp.maxContentPerArticle] + "... [truncated]"
+		}
+	}
 }
 
 // filterArticles applies include/exclude keyword filters to the article list.
@@ -188,55 +198,34 @@ func (cp *ContentProcessor) sortArticles(articles []*aggregator.Article, sortBy 
 	return sortedArticles
 }
 
-func (cp *ContentProcessor) prepareForLLM(articles []*aggregator.Article) []map[string]any {
-	processed := make([]map[string]any, len(articles))
-
-	for i, article := range articles {
-		// Process content
-		content := article.Content
-		if len(content) > cp.maxContentPerArticle {
-			content = content[:cp.maxContentPerArticle] + "... [truncated]"
-		}
-
-		// Create map
-		articleMap := map[string]any{
-			"title":       article.Title,
-			"link":        article.Link,
-			"content":     content,
-			"author":      article.Author,
-			"source_feed": article.SourceFeed,
-			"summary":     article.Summary,
-		}
-
-		if !article.Published.IsZero() {
-			articleMap["published"] = article.Published
-		}
-
-		processed[i] = articleMap
-	}
-
-	return processed
-}
-
 // EstimateTokenCount uses tiktoken to estimate total token count across all articles.
 // Falls back to char÷4 on encoding errors (logged as warnings).
-func (cp *ContentProcessor) EstimateTokenCount(articles []map[string]any, model string) int {
+func (cp *ContentProcessor) EstimateTokenCount(articles []*aggregator.Article, model string) int {
 	totalTokens := 0
 
 	for _, article := range articles {
-		for _, field := range []string{"title", "content", "author", "source_feed"} {
-			if val, ok := article[field]; ok && val != nil {
-				if str, ok := val.(string); ok && str != "" {
-					tokens, err := tokeniser.CountTokens(str, model)
-					if err != nil {
-						// Fallback to rough estimate on error
-						cp.logger.Logf("Warning: token count error for %s: %v", field, err)
-						totalTokens += len(str) / 4
-						continue
-					}
-					totalTokens += tokens
-				}
+		fields := []struct {
+			name  string
+			value string
+		}{
+			{"title", article.Title},
+			{"content", article.Content},
+			{"author", article.Author},
+			{"source_feed", article.SourceFeed},
+		}
+
+		for _, field := range fields {
+			if field.value == "" {
+				continue
 			}
+			tokens, err := tokeniser.CountTokens(field.value, model)
+			if err != nil {
+				// Fallback to rough estimate on error
+				cp.logger.Logf("Warning: token count error for %s: %v", field.name, err)
+				totalTokens += len(field.value) / 4
+				continue
+			}
+			totalTokens += tokens
 		}
 	}
 

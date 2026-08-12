@@ -5,7 +5,22 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 )
+
+// Data is the typed envelope passed to the formatter.
+// It replaces the previous map[string]any contract so key names and
+// value types are checked by the compiler instead of asserted at runtime.
+type Data struct {
+	Title         string                `json:"title"`
+	Prompt        string                `json:"prompt"`
+	Model         string                `json:"model"`
+	ArticlesCount int                   `json:"articles_count"`
+	Summary       string                `json:"summary"`
+	Timestamp     string                `json:"timestamp"`
+	Articles      []*aggregator.Article `json:"articles,omitempty"`
+}
 
 // Formatter formats output in different formats.
 type Formatter struct {
@@ -22,7 +37,7 @@ func NewFormatter(formatType string) (*Formatter, error) {
 }
 
 // FormatData formats data according to the specified format.
-func (f *Formatter) FormatData(data map[string]any) (string, error) {
+func (f *Formatter) FormatData(data Data) (string, error) {
 	switch f.formatType {
 	case "json":
 		return f.formatJSON(data)
@@ -33,7 +48,7 @@ func (f *Formatter) FormatData(data map[string]any) (string, error) {
 	}
 }
 
-func (f *Formatter) formatJSON(data map[string]any) (string, error) {
+func (f *Formatter) formatJSON(data Data) (string, error) {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal JSON: %w", err)
@@ -41,11 +56,14 @@ func (f *Formatter) formatJSON(data map[string]any) (string, error) {
 	return string(bytes), nil
 }
 
-func (f *Formatter) formatMarkdown(data map[string]any) (string, error) {
+func (f *Formatter) formatMarkdown(data Data) (string, error) {
 	var lines []string
 
 	// Title
-	title := getString(data, "title", "LLM Aggregator Summary")
+	title := data.Title
+	if title == "" {
+		title = "LLM Aggregator Summary"
+	}
 	lines = append(lines, "# "+title)
 	lines = append(lines, "")
 
@@ -53,54 +71,58 @@ func (f *Formatter) formatMarkdown(data map[string]any) (string, error) {
 	lines = append(lines, "## Metadata")
 	lines = append(lines, "")
 
-	prompt := getString(data, "prompt", "Unknown")
-	model := getString(data, "model", "Unknown")
-	articlesCount := getInt(data, "articles_count", 0)
-	timestamp := getString(data, "timestamp", time.Now().Format(time.RFC3339))
+	prompt := data.Prompt
+	if prompt == "" {
+		prompt = "Unknown"
+	}
+	model := data.Model
+	if model == "" {
+		model = "Unknown"
+	}
+	timestamp := data.Timestamp
+	if timestamp == "" {
+		timestamp = time.Now().Format(time.RFC3339)
+	}
 
 	lines = append(lines, "- **Prompt**: "+prompt)
 	lines = append(lines, "- **Model**: "+model)
-	lines = append(lines, fmt.Sprintf("- **Articles Analysed**: %d", articlesCount))
+	lines = append(lines, fmt.Sprintf("- **Articles Analysed**: %d", data.ArticlesCount))
 	lines = append(lines, "- **Generated**: "+timestamp)
 	lines = append(lines, "")
 
 	// Summary
 	lines = append(lines, "## Summary")
 	lines = append(lines, "")
-	summary := getString(data, "summary", "No summary available.")
+	summary := data.Summary
+	if summary == "" {
+		summary = "No summary available."
+	}
 	lines = append(lines, summary)
 	lines = append(lines, "")
 
 	// Articles (if included)
-	if articles, ok := data["articles"].([]map[string]any); ok && len(articles) > 0 {
+	if len(data.Articles) > 0 {
 		lines = append(lines, "## Articles Analysed")
 		lines = append(lines, "")
 
-		for i, article := range articles {
-			lines = append(lines, fmt.Sprintf("### Article %d: %s", i+1, article["title"]))
+		for i, article := range data.Articles {
+			lines = append(lines, fmt.Sprintf("### Article %d: %s", i+1, article.Title))
 			lines = append(lines, "")
 
-			if source, ok := article["source_feed"].(string); ok && source != "" {
-				lines = append(lines, "**Source**: "+source)
+			if article.SourceFeed != "" {
+				lines = append(lines, "**Source**: "+article.SourceFeed)
 			}
 
-			if published, ok := article["published"]; ok {
-				switch pub := published.(type) {
-				case time.Time:
-					if !pub.IsZero() {
-						lines = append(lines, "**Published**: "+pub.Format("2006-01-02 15:04"))
-					}
-				case string:
-					lines = append(lines, "**Published**: "+pub)
-				}
+			if !article.Published.IsZero() {
+				lines = append(lines, "**Published**: "+article.Published.Format("2006-01-02 15:04"))
 			}
 
-			if author, ok := article["author"].(string); ok && author != "" {
-				lines = append(lines, "**Author**: "+author)
+			if article.Author != "" {
+				lines = append(lines, "**Author**: "+article.Author)
 			}
 
-			if link, ok := article["link"].(string); ok && link != "" {
-				lines = append(lines, fmt.Sprintf("**Link**: [%s](%s)", link, link))
+			if article.Link != "" {
+				lines = append(lines, fmt.Sprintf("**Link**: [%s](%s)", article.Link, article.Link))
 			}
 
 			lines = append(lines, "")
@@ -110,11 +132,14 @@ func (f *Formatter) formatMarkdown(data map[string]any) (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-func (f *Formatter) formatText(data map[string]any) (string, error) {
+func (f *Formatter) formatText(data Data) (string, error) {
 	var lines []string
 
 	// Title/Header
-	title := getString(data, "title", "LLM Aggregator Summary")
+	title := data.Title
+	if title == "" {
+		title = "LLM Aggregator Summary"
+	}
 	lines = append(lines, strings.Repeat("=", 80))
 	lines = append(lines, centerText(title, 80))
 	lines = append(lines, strings.Repeat("=", 80))
@@ -124,14 +149,22 @@ func (f *Formatter) formatText(data map[string]any) (string, error) {
 	lines = append(lines, "METADATA")
 	lines = append(lines, strings.Repeat("-", 40))
 
-	prompt := getString(data, "prompt", "Unknown")
-	model := getString(data, "model", "Unknown")
-	articlesCount := getInt(data, "articles_count", 0)
-	timestamp := getString(data, "timestamp", time.Now().Format(time.RFC3339))
+	prompt := data.Prompt
+	if prompt == "" {
+		prompt = "Unknown"
+	}
+	model := data.Model
+	if model == "" {
+		model = "Unknown"
+	}
+	timestamp := data.Timestamp
+	if timestamp == "" {
+		timestamp = time.Now().Format(time.RFC3339)
+	}
 
 	lines = append(lines, "Prompt: "+prompt)
 	lines = append(lines, "Model: "+model)
-	lines = append(lines, fmt.Sprintf("Articles Analysed: %d", articlesCount))
+	lines = append(lines, fmt.Sprintf("Articles Analysed: %d", data.ArticlesCount))
 	lines = append(lines, "Generated: "+timestamp)
 	lines = append(lines, "")
 
@@ -139,46 +172,42 @@ func (f *Formatter) formatText(data map[string]any) (string, error) {
 	lines = append(lines, "SUMMARY")
 	lines = append(lines, strings.Repeat("-", 40))
 	lines = append(lines, "")
-	summary := getString(data, "summary", "No summary available.")
+	summary := data.Summary
+	if summary == "" {
+		summary = "No summary available."
+	}
 	lines = append(lines, summary)
 	lines = append(lines, "")
 
 	// Articles (if included)
-	if articles, ok := data["articles"].([]map[string]any); ok && len(articles) > 0 {
+	if len(data.Articles) > 0 {
 		lines = append(lines, "ARTICLES ANALYSED")
 		lines = append(lines, strings.Repeat("-", 40))
 		lines = append(lines, "")
 
-		for i, article := range articles {
+		for i, article := range data.Articles {
 			lines = append(lines, fmt.Sprintf("[Article %d]", i+1))
-			lines = append(lines, fmt.Sprintf("Title: %s", article["title"]))
+			lines = append(lines, "Title: "+article.Title)
 
-			if source, ok := article["source_feed"].(string); ok && source != "" {
-				lines = append(lines, "Source: "+source)
+			if article.SourceFeed != "" {
+				lines = append(lines, "Source: "+article.SourceFeed)
 			}
 
-			if published, ok := article["published"]; ok {
-				switch pub := published.(type) {
-				case time.Time:
-					if !pub.IsZero() {
-						lines = append(lines, "Published: "+pub.Format("2006-01-02 15:04"))
-					}
-				case string:
-					lines = append(lines, "Published: "+pub)
-				}
+			if !article.Published.IsZero() {
+				lines = append(lines, "Published: "+article.Published.Format("2006-01-02 15:04"))
 			}
 
-			if author, ok := article["author"].(string); ok && author != "" {
-				lines = append(lines, "Author: "+author)
+			if article.Author != "" {
+				lines = append(lines, "Author: "+article.Author)
 			}
 
-			if link, ok := article["link"].(string); ok && link != "" {
-				lines = append(lines, "Link: "+link)
+			if article.Link != "" {
+				lines = append(lines, "Link: "+article.Link)
 			}
 
 			// Show preview of content
-			if content, ok := article["content"].(string); ok && content != "" {
-				preview := content
+			if article.Content != "" {
+				preview := article.Content
 				if len(preview) > 200 {
 					preview = preview[:200] + "..."
 				}
@@ -195,24 +224,6 @@ func (f *Formatter) formatText(data map[string]any) (string, error) {
 	lines = append(lines, strings.Repeat("=", 80))
 
 	return strings.Join(lines, "\n"), nil
-}
-
-// Helper functions
-func getString(data map[string]any, key, defaultValue string) string {
-	if val, ok := data[key].(string); ok {
-		return val
-	}
-	return defaultValue
-}
-
-func getInt(data map[string]any, key string, defaultValue int) int {
-	if val, ok := data[key].(int); ok {
-		return val
-	}
-	if val, ok := data[key].(float64); ok {
-		return int(val)
-	}
-	return defaultValue
 }
 
 func centerText(text string, width int) string {

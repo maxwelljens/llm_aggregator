@@ -237,8 +237,8 @@ func runDryRun(rt *runtime.Runtime, verbose bool) {
 	// Group articles by source for summary
 	sourceCounts := make(map[string]int)
 	for _, article := range processedArticles {
-		if title, ok := article["source_feed"].(string); ok {
-			sourceCounts[title]++
+		if article.SourceFeed != "" {
+			sourceCounts[article.SourceFeed]++
 		}
 	}
 

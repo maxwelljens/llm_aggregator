@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 
@@ -93,7 +94,7 @@ type TokenUsage struct {
 // Returns the LLM response text, token usage, and any error.
 // ctx must carry signal cancellation so that SIGINT/SIGTERM aborts the call.
 func (dc *LLMClient) SummariseArticles(
-	articles []map[string]any,
+	articles []*aggregator.Article,
 	userPrompt string,
 	systemPrompt string,
 	ctx context.Context,
@@ -112,45 +113,32 @@ func (dc *LLMClient) SummariseArticles(
 	return dc.callAPIWithMessages(ctx, messages)
 }
 
-func (dc *LLMClient) prepareContext(articles []map[string]any) string {
+func (dc *LLMClient) prepareContext(articles []*aggregator.Article) string {
 	contextParts := []string{}
 
 	for i, article := range articles {
 		contextParts = append(contextParts, fmt.Sprintf("--- ARTICLE %d ---", i+1))
-		contextParts = append(contextParts, fmt.Sprintf("Title: %s", article["title"]))
+		contextParts = append(contextParts, "Title: "+article.Title)
 
-		if source, ok := article["source_feed"].(string); ok && source != "" {
-			contextParts = append(contextParts, "Source: "+source)
+		if article.SourceFeed != "" {
+			contextParts = append(contextParts, "Source: "+article.SourceFeed)
 		}
 
-		if published, ok := article["published"]; ok {
-			switch pub := published.(type) {
-			case time.Time:
-				if !pub.IsZero() {
-					contextParts = append(contextParts, "Published: "+pub.Format(time.RFC3339))
-				}
-			case string:
-				contextParts = append(contextParts, "Published: "+pub)
-			default:
-				contextParts = append(contextParts, fmt.Sprintf("Published: %v", pub))
-			}
+		if !article.Published.IsZero() {
+			contextParts = append(contextParts, "Published: "+article.Published.Format(time.RFC3339))
 		}
 
-		if author, ok := article["author"].(string); ok && author != "" {
-			contextParts = append(contextParts, "Author: "+author)
+		if article.Author != "" {
+			contextParts = append(contextParts, "Author: "+article.Author)
 		}
 
-		if link, ok := article["link"].(string); ok && link != "" {
-			contextParts = append(contextParts, "Link: "+link)
+		if article.Link != "" {
+			contextParts = append(contextParts, "Link: "+article.Link)
 		}
 
-		if content, ok := article["content"].(string); ok && content != "" {
-			// Truncate very long content
-			maxContentLen := 3000
-			if len(content) > maxContentLen {
-				content = content[:maxContentLen] + "... [truncated]"
-			}
-			contextParts = append(contextParts, "Content: "+content)
+		if article.Content != "" {
+			// Content is truncated by the processor; render as-is.
+			contextParts = append(contextParts, "Content: "+article.Content)
 		}
 
 		contextParts = append(contextParts, "") // Empty line between articles

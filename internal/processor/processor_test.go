@@ -10,11 +10,11 @@ import (
 
 func TestNewContentProcessor(t *testing.T) {
 	tests := []struct {
-		name                    string
-		maxTotalArticles        int
-		maxContentPerArticle    int
-		filterKeywords          []string
-		excludeKeywords         []string
+		name                 string
+		maxTotalArticles     int
+		maxContentPerArticle int
+		filterKeywords       []string
+		excludeKeywords      []string
 	}{
 		{"standard config", 20, 5000, []string{"tech"}, []string{"spam"}},
 		{"zero limits", 0, 0, nil, nil},
@@ -63,7 +63,7 @@ func TestProcessArticles(t *testing.T) {
 		result := cp.ProcessArticles(articles, "date", false)
 
 		// Check first article has earliest date
-		firstTitle := result[0]["title"].(string)
+		firstTitle := result[0].Title
 		if !strings.Contains(firstTitle, "Old") {
 			t.Errorf("Expected first article to be oldest, got %s", firstTitle)
 		}
@@ -74,7 +74,7 @@ func TestProcessArticles(t *testing.T) {
 		result := cp.ProcessArticles(articles, "date", true)
 
 		// Check first article has latest date
-		firstTitle := result[0]["title"].(string)
+		firstTitle := result[0].Title
 		if !strings.Contains(firstTitle, "New") {
 			t.Errorf("Expected first article to be newest, got %s", firstTitle)
 		}
@@ -115,7 +115,7 @@ func TestFilterArticlesByIncludeKeywords(t *testing.T) {
 
 	titles := make([]string, len(result))
 	for i, a := range result {
-		titles[i] = a["title"].(string)
+		titles[i] = a.Title
 	}
 
 	if !containsString(titles, "Tech Article") {
@@ -145,7 +145,7 @@ func TestFilterArticlesByExcludeKeywords(t *testing.T) {
 
 	titles := make([]string, len(result))
 	for i, a := range result {
-		titles[i] = a["title"].(string)
+		titles[i] = a.Title
 	}
 
 	if containsString(titles, "Advertisement") {
@@ -179,11 +179,11 @@ func TestSortArticlesByTitle(t *testing.T) {
 		cp := NewContentProcessor(100, 5000, nil, nil)
 		result := cp.ProcessArticles(articles, "title", false)
 
-		if result[0]["title"] != "Alpha Article" {
-			t.Errorf("Expected Alpha first, got %s", result[0]["title"])
+		if result[0].Title != "Alpha Article" {
+			t.Errorf("Expected Alpha first, got %s", result[0].Title)
 		}
-		if result[2]["title"] != "Zebra Article" {
-			t.Errorf("Expected Zebra last, got %s", result[2]["title"])
+		if result[2].Title != "Zebra Article" {
+			t.Errorf("Expected Zebra last, got %s", result[2].Title)
 		}
 	})
 
@@ -191,8 +191,8 @@ func TestSortArticlesByTitle(t *testing.T) {
 		cp := NewContentProcessor(100, 5000, nil, nil)
 		result := cp.ProcessArticles(articles, "title", true)
 
-		if result[0]["title"] != "Zebra Article" {
-			t.Errorf("Expected Zebra first, got %s", result[0]["title"])
+		if result[0].Title != "Zebra Article" {
+			t.Errorf("Expected Zebra first, got %s", result[0].Title)
 		}
 	})
 }
@@ -208,8 +208,8 @@ func TestSortArticlesBySource(t *testing.T) {
 		cp := NewContentProcessor(100, 5000, nil, nil)
 		result := cp.ProcessArticles(articles, "source", false)
 
-		if result[0]["source_feed"] != "Alpha Feed" {
-			t.Errorf("Expected Alpha Feed first, got %s", result[0]["source_feed"])
+		if result[0].SourceFeed != "Alpha Feed" {
+			t.Errorf("Expected Alpha Feed first, got %s", result[0].SourceFeed)
 		}
 	})
 
@@ -217,8 +217,8 @@ func TestSortArticlesBySource(t *testing.T) {
 		cp := NewContentProcessor(100, 5000, nil, nil)
 		result := cp.ProcessArticles(articles, "source", true)
 
-		if result[0]["source_feed"] != "Zulu Feed" {
-			t.Errorf("Expected Zulu Feed first, got %s", result[0]["source_feed"])
+		if result[0].SourceFeed != "Zulu Feed" {
+			t.Errorf("Expected Zulu Feed first, got %s", result[0].SourceFeed)
 		}
 	})
 }
@@ -244,20 +244,20 @@ func TestPrepareForLLM(t *testing.T) {
 
 	// Check all expected fields are present
 	articleMap := result[0]
-	if articleMap["title"] != "Test Title" {
-		t.Errorf("Expected title 'Test Title', got %v", articleMap["title"])
+	if articleMap.Title != "Test Title" {
+		t.Errorf("Expected title 'Test Title', got %v", articleMap.Title)
 	}
-	if articleMap["link"] != "https://example.com/test" {
-		t.Errorf("Expected link, got %v", articleMap["link"])
+	if articleMap.Link != "https://example.com/test" {
+		t.Errorf("Expected link, got %v", articleMap.Link)
 	}
-	if articleMap["author"] != "Test Author" {
-		t.Errorf("Expected author, got %v", articleMap["author"])
+	if articleMap.Author != "Test Author" {
+		t.Errorf("Expected author, got %v", articleMap.Author)
 	}
-	if articleMap["source_feed"] != "Test Feed" {
-		t.Errorf("Expected source_feed, got %v", articleMap["source_feed"])
+	if articleMap.SourceFeed != "Test Feed" {
+		t.Errorf("Expected source_feed, got %v", articleMap.SourceFeed)
 	}
-	if articleMap["summary"] != "Test Summary" {
-		t.Errorf("Expected summary, got %v", articleMap["summary"])
+	if articleMap.Summary != "Test Summary" {
+		t.Errorf("Expected summary, got %v", articleMap.Summary)
 	}
 }
 
@@ -272,7 +272,7 @@ func TestContentTruncation(t *testing.T) {
 		cp := NewContentProcessor(10, 1000, nil, nil)
 		result := cp.ProcessArticles([]*aggregator.Article{article}, "date", false)
 
-		content := result[0]["content"].(string)
+		content := result[0].Content
 		if !strings.HasSuffix(content, "... [truncated]") {
 			t.Error("Expected content to be truncated")
 		}
@@ -290,7 +290,7 @@ func TestContentTruncation(t *testing.T) {
 		cp := NewContentProcessor(10, 5000, nil, nil)
 		result := cp.ProcessArticles([]*aggregator.Article{shortArticle}, "date", false)
 
-		content := result[0]["content"].(string)
+		content := result[0].Content
 		if strings.Contains(content, "[truncated]") {
 			t.Error("Short content should not be truncated")
 		}
@@ -342,7 +342,7 @@ func TestMixedIncludeExclude(t *testing.T) {
 
 	titles := make([]string, len(result))
 	for i, a := range result {
-		titles[i] = a["title"].(string)
+		titles[i] = a.Title
 	}
 
 	if !containsString(titles, "Tech News") {

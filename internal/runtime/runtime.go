@@ -42,7 +42,7 @@ type Runtime struct {
 	Verbose            bool
 
 	// State
-	Articles []map[string]any
+	Articles []*aggregator.Article
 	Summary  string
 
 	// Progress is the logger/progress handler injected by the caller.
@@ -196,17 +196,17 @@ func (r *Runtime) WriteOutput(writer io.Writer) error {
 		return fmt.Errorf("error creating formatter: %w", err)
 	}
 
-	outputData := map[string]any{
-		"title":          "LLM Aggregator Summary - " + time.Now().Format("2006-01-02 15:04"),
-		"prompt":         r.Prompt,
-		"model":          r.Model,
-		"articles_count": len(r.Articles),
-		"summary":        r.Summary,
-		"timestamp":      time.Now().Format(time.RFC3339),
+	outputData := output.Data{
+		Title:         "LLM Aggregator Summary - " + time.Now().Format("2006-01-02 15:04"),
+		Prompt:        r.Prompt,
+		Model:         r.Model,
+		ArticlesCount: len(r.Articles),
+		Summary:       r.Summary,
+		Timestamp:     time.Now().Format(time.RFC3339),
 	}
 
 	if r.IncludeArticles {
-		outputData["articles"] = r.Articles
+		outputData.Articles = r.Articles
 	}
 
 	formattedOutput, err := formatter.FormatData(outputData)

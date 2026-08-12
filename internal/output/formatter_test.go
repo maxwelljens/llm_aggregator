@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 )
 
 func TestNewFormatter(t *testing.T) {
@@ -44,22 +46,24 @@ func TestNewFormatter(t *testing.T) {
 	}
 }
 
+func testData() Data {
+	return Data{
+		Title:         "Test Summary",
+		Prompt:        "Summarise the news",
+		Model:         "deepseek-chat",
+		ArticlesCount: 5,
+		Timestamp:     "2024-01-15T10:00:00Z",
+		Summary:       "This is a test summary.",
+	}
+}
+
 func TestFormatDataJSON(t *testing.T) {
 	formatter, err := NewFormatter("json")
 	if err != nil {
 		t.Fatalf("Failed to create formatter: %v", err)
 	}
 
-	data := map[string]any{
-		"title":          "Test Summary",
-		"prompt":         "Summarise the news",
-		"model":          "deepseek-chat",
-		"articles_count": 5,
-		"timestamp":      "2024-01-15T10:00:00Z",
-		"summary":        "This is a test summary.",
-	}
-
-	output, err := formatter.FormatData(data)
+	output, err := formatter.FormatData(testData())
 	if err != nil {
 		t.Errorf("FormatData failed: %v", err)
 	}
@@ -77,6 +81,9 @@ func TestFormatDataJSON(t *testing.T) {
 	if parsed["summary"] != "This is a test summary." {
 		t.Errorf("Expected summary 'This is a test summary.', got %v", parsed["summary"])
 	}
+	if parsed["articles_count"] != float64(5) {
+		t.Errorf("Expected articles_count 5, got %v", parsed["articles_count"])
+	}
 }
 
 func TestFormatDataMarkdown(t *testing.T) {
@@ -85,13 +92,10 @@ func TestFormatDataMarkdown(t *testing.T) {
 		t.Fatalf("Failed to create formatter: %v", err)
 	}
 
-	data := map[string]any{
-		"title":          "Markdown Test",
-		"prompt":         "Test prompt",
-		"model":          "gpt-4",
-		"articles_count": 3,
-		"summary":        "Markdown summary content.",
-	}
+	data := testData()
+	data.Title = "Markdown Test"
+	data.Model = "gpt-4"
+	data.Summary = "Markdown summary content."
 
 	output, err := formatter.FormatData(data)
 	if err != nil {
@@ -119,13 +123,10 @@ func TestFormatDataText(t *testing.T) {
 		t.Fatalf("Failed to create formatter: %v", err)
 	}
 
-	data := map[string]any{
-		"title":          "Text Output Test",
-		"prompt":         "Test prompt",
-		"model":          "claude-3",
-		"articles_count": 2,
-		"summary":        "Plain text summary.",
-	}
+	data := testData()
+	data.Title = "Text Output Test"
+	data.Model = "claude-3"
+	data.Summary = "Plain text summary."
 
 	output, err := formatter.FormatData(data)
 	if err != nil {
@@ -153,28 +154,27 @@ func TestFormatDataWithArticles(t *testing.T) {
 		t.Fatalf("Failed to create formatter: %v", err)
 	}
 
-	articles := []map[string]any{
+	articles := []*aggregator.Article{
 		{
-			"title":       "Article One",
-			"source_feed": "News Feed",
-			"author":      "John Doe",
-			"link":        "https://example.com/1",
-			"published":   time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
+			Title:      "Article One",
+			SourceFeed: "News Feed",
+			Author:     "John Doe",
+			Link:       "https://example.com/1",
+			Published:  time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
 		},
 		{
-			"title":       "Article Two",
-			"source_feed": "Tech Feed",
-			"author":      "Jane Smith",
-			"link":        "https://example.com/2",
+			Title:      "Article Two",
+			SourceFeed: "Tech Feed",
+			Author:     "Jane Smith",
+			Link:       "https://example.com/2",
 		},
 	}
 
-	data := map[string]any{
-		"title":          "With Articles",
-		"summary":        "Summary with articles",
-		"articles_count": 2,
-		"articles":       articles,
-	}
+	data := testData()
+	data.Title = "With Articles"
+	data.Summary = "Summary with articles"
+	data.ArticlesCount = 2
+	data.Articles = articles
 
 	output, err := formatter.FormatData(data)
 	if err != nil {
@@ -199,21 +199,19 @@ func TestFormatDataMarkdownWithArticles(t *testing.T) {
 		t.Fatalf("Failed to create formatter: %v", err)
 	}
 
-	articles := []map[string]any{
+	articles := []*aggregator.Article{
 		{
-			"title":       "MD Article",
-			"source_feed": "MD Feed",
-			"published":   time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
-			"link":        "https://example.com/md",
+			Title:      "MD Article",
+			SourceFeed: "MD Feed",
+			Published:  time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
+			Link:       "https://example.com/md",
 		},
 	}
 
-	data := map[string]any{
-		"title":          "Markdown with Articles",
-		"summary":        "Test summary",
-		"articles_count": 1,
-		"articles":       articles,
-	}
+	data := testData()
+	data.Title = "Markdown with Articles"
+	data.ArticlesCount = 1
+	data.Articles = articles
 
 	output, err := formatter.FormatData(data)
 	if err != nil {
@@ -239,9 +237,7 @@ func TestFormatDataDefaultValues(t *testing.T) {
 	}
 
 	// Data with missing fields - should use defaults
-	data := map[string]any{}
-
-	output, err := formatter.FormatData(data)
+	output, err := formatter.FormatData(Data{})
 	if err != nil {
 		t.Errorf("FormatData failed: %v", err)
 	}
@@ -255,55 +251,6 @@ func TestFormatDataDefaultValues(t *testing.T) {
 	}
 }
 
-func TestGetStringHelper(t *testing.T) {
-	tests := []struct {
-		name         string
-		data         map[string]any
-		key          string
-		defaultValue string
-		want         string
-	}{
-		{"existing string", map[string]any{"key": "value"}, "key", "default", "value"},
-		{"missing key", map[string]any{}, "key", "default", "default"},
-		{"nil value", map[string]any{"key": nil}, "key", "default", "default"},
-		{"wrong type", map[string]any{"key": 123}, "key", "default", "default"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := getString(tt.data, tt.key, tt.defaultValue)
-			if got != tt.want {
-				t.Errorf("getString() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGetIntHelper(t *testing.T) {
-	tests := []struct {
-		name         string
-		data         map[string]any
-		key          string
-		defaultValue int
-		want         int
-	}{
-		{"existing int", map[string]any{"count": 42}, "count", 0, 42},
-		{"existing float64", map[string]any{"count": float64(42.5)}, "count", 0, 42},
-		{"missing key", map[string]any{}, "count", 10, 10},
-		{"nil value", map[string]any{"count": nil}, "count", 10, 10},
-		{"wrong type", map[string]any{"count": "string"}, "count", 10, 10},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := getInt(tt.data, tt.key, tt.defaultValue)
-			if got != tt.want {
-				t.Errorf("getInt() = %d, want %d", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestCenterText(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -314,7 +261,7 @@ func TestCenterText(t *testing.T) {
 		{"short text", "Hi", 10, "    Hi    "},  // 3 left, 2 right (floored)
 		{"exact width", "Hello", 5, "Hello"},
 		{"longer than width", "Hello World", 5, "Hello World"},
-		{"even padding", "Test", 12, "    Test    "},  // 4 left, 3 right (floored)
+		{"even padding", "Test", 12, "    Test    "}, // 4 left, 3 right (floored)
 	}
 
 	for _, tt := range tests {
@@ -333,12 +280,9 @@ func TestJSONIndentation(t *testing.T) {
 		t.Fatalf("Failed to create formatter: %v", err)
 	}
 
-	data := map[string]any{
-		"nested": map[string]any{
-			"key1": "value1",
-			"key2": 42,
-		},
-		"array": []int{1, 2, 3},
+	data := testData()
+	data.Articles = []*aggregator.Article{
+		{Title: "A", Link: "https://example.com/a"},
 	}
 
 	output, err := formatter.FormatData(data)
