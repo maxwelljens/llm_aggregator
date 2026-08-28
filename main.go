@@ -56,25 +56,70 @@ func main() {
 	}
 
 	if args.TUI {
-		sh.Stop()
-		runWithTUI(rt)
+		runWithTUI(rt, sh)
 	} else {
 		runWithoutTUI(rt, args.Verbose, sh)
 	}
 }
 
-func runWithTUI(rt *runtime.Runtime) {
-	// Build the model and inject progress bridge so runtime can send messages into the TUI
-	model := tui.New(rt)
+func runWithTUI(rt *runtime.Runtime, sh *signals.SignalHandler) {
+	// Cancel the pipeline context on signal, exactly like the non-TUI path,
+	// so SIGINT/SIGTERM abort the in-flight LLM call instead of being ignored.
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		<-sh.Done()
+		cancel()
+	}()
+
+	// Build the model around the pipeline and inject progress bridge so
+	// runtime can send messages into the TUI
+	model := tui.New(rt.Execute, ctx)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	tp := tui.NewTUIProgress(p)
 	rt.Progress = tp
 
 	// Blocking call; returns on quit
 	if _, err := p.Run(); err != nil {
+		sh.Stop()
 		fmt.Fprintln(os.Stderr, style.Errorf("TUI error: %v", err))
 		os.Exit(1)
 	}
+
+	result, err, finished := model.FinalResult()
+	if !finished {
+		// User quit before the pipeline returned; nothing to write.
+		sh.Stop()
+		os.Exit(0)
+	}
+	if sh.IsExiting() {
+		sh.Stop()
+		if result.Summary != "" {
+			_ = rt.WriteOutput(os.Stdout, result) //nolint:errcheck // stdout write failure is unrecoverable
+		}
+		fmt.Fprintln(os.Stderr, style.Errorf("interrupted by signal"))
+		os.Exit(130)
+	}
+	if err != nil {
+		sh.Stop()
+		fmt.Fprintln(os.Stderr, style.Errorf("execution failed: %v", err))
+		os.Exit(1)
+	}
+
+	if rt.OutputFile != "" {
+		if err := rt.WriteOutputToFile(result); err != nil {
+			sh.Stop()
+			fmt.Fprintln(os.Stderr, style.Errorf("writing output to file: %v", err))
+			os.Exit(1)
+		}
+	} else {
+		if err := rt.WriteOutput(os.Stdout, result); err != nil {
+			sh.Stop()
+			fmt.Fprintln(os.Stderr, style.Errorf("writing output: %v", err))
+			os.Exit(1)
+		}
+	}
+
+	sh.Stop()
 }
 
 func runWithoutTUI(rt *runtime.Runtime, verbose bool, sh *signals.SignalHandler) {

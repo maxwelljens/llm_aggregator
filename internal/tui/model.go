@@ -95,17 +95,25 @@ type TokenEstimateMsg struct {
 type WaitingMsg struct{}
 
 type processingDoneMsg struct {
-	err     error
-	summary string
+	err    error
+	result runtime.Result
 }
 
 type progressMsg float64
+
+// ExecuteFunc runs the pipeline and returns its result. The production
+// adapter is (*runtime.Runtime).Execute; tests inject a fake.
+type ExecuteFunc func(ctx context.Context) (runtime.Result, error)
 
 type Model struct {
 	progress        progress.Model
 	spinner         spinner.Model
 	viewport        viewport.Model
-	runtime         *runtime.Runtime
+	execute         ExecuteFunc
+	ctx             context.Context
+	result          runtime.Result
+	resultErr       error
+	finished        bool
 	currentStep     int
 	totalSteps      int
 	status          string
@@ -128,7 +136,7 @@ type Model struct {
 	cleanSummary    string // Summary with thinking tags removed
 }
 
-func New(rt *runtime.Runtime) *Model {
+func New(execute ExecuteFunc, ctx context.Context) *Model {
 	prog := progress.New(
 		progress.WithSolidFill("colorSuccess"),
 		progress.WithWidth(40),
@@ -140,16 +148,14 @@ func New(rt *runtime.Runtime) *Model {
 	sp.Style = lipgloss.NewStyle().Foreground(colorHighlight)
 
 	return &Model{
-		progress:     prog,
-		spinner:      sp,
-		runtime:      rt,
-		currentStep:  0,
-		totalSteps:   len(stepNames) - 1, // Last step is "Complete"
-		status:       "Initialising...",
-		subStatus:    "Loading configuration",
-		startTime:    time.Now(),
-		showSummary:  false,
-		showThinking: false, // Default: thinking tags are hidden
+		progress:  prog,
+		spinner:   sp,
+		execute:   execute,
+		ctx:       ctx,
+		status:     "Initialising...",
+		subStatus:  "Loading configuration",
+		startTime:  time.Now(),
+		totalSteps: len(stepNames) - 1, // Last step is "Complete"
 	}
 }
 
@@ -162,10 +168,17 @@ func (m *Model) Init() tea.Cmd {
 }
 
 // startProcessing is the standard bubbletea command pattern.
-// The runtime executes in a goroutine managed by the bubbletea runtime.
+// The pipeline executes in a goroutine managed by the bubbletea runtime.
 func (m *Model) startProcessing() tea.Msg {
-	result, err := m.runtime.Execute(context.Background())
-	return processingDoneMsg{err: err, summary: result.Summary}
+	result, err := m.execute(m.ctx)
+	return processingDoneMsg{err: err, result: result}
+}
+
+// FinalResult reports the pipeline outcome once processing has finished.
+// The final bool is false when the program quit before the pipeline
+// returned (e.g. the user pressed 'q' mid-run).
+func (m *Model) FinalResult() (runtime.Result, error, bool) {
+	return m.result, m.resultErr, m.finished
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -271,6 +284,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case processingDoneMsg:
 		m.waiting = false
+		m.result = msg.result
+		m.resultErr = msg.err
+		m.finished = true
 		if msg.err != nil {
 			m.errorMsg = msg.err.Error()
 			m.done = true // Also mark as done on error
@@ -280,11 +296,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = stepNames[m.totalSteps]
 			m.subStatus = "Summary generated successfully!"
 			// Enable summary viewport if there's content to display
-			if msg.summary != "" {
+			if msg.result.Summary != "" {
 				m.showSummary = true
 				// Extract and remove thinking tags from the summary
-				m.thinkingContent = thinkingTagRegex.FindString(msg.summary)
-				m.cleanSummary = thinkingTagRegex.ReplaceAllString(msg.summary, "")
+				m.thinkingContent = thinkingTagRegex.FindString(msg.result.Summary)
+				m.cleanSummary = thinkingTagRegex.ReplaceAllString(msg.result.Summary, "")
 				// Clean up extra whitespace left behind after removing thinking tags
 				m.cleanSummary = strings.TrimSpace(m.cleanSummary)
 				// Resize viewport to fit available space
@@ -299,9 +315,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// Capture the final elapsed time.
 		m.elapsed = time.Since(m.startTime)
-		// We are done, so we return a command to quit the program automatically.
-		// The user can see the final summary. If we want the user to quit manually,
-		// just return 'm, nil'.
+		// If the context was cancelled (signal), quit right away instead of
+		// waiting for the user; main writes the partial result and exits 130.
+		if m.ctx.Err() != nil {
+			return m, tea.Quit
+		}
+		// The user can view the summary and quit manually.
 		return m, nil
 	case ErrorMsg:
 		m.errorMsg = msg.Error
