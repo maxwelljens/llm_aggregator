@@ -42,10 +42,7 @@ func main() {
 
 	v := config.GetViper()
 
-	config.BindCLIArgs(v, args.ToViperMap())
-
-	// FeedsFile and Prompt come from positional CLI args; everything else from viper
-	rt := config.ViperToRuntime(v, args.FeedsFile, args.Prompt)
+	rt := config.ViperToRuntime(v, args)
 
 	os.Exit(run(rt, args, sh, os.Stdout, os.Stderr))
 }

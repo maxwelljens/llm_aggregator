@@ -431,65 +431,6 @@ func TestBaseURLParsing(t *testing.T) {
 	}
 }
 
-func TestArgsToViperMap(t *testing.T) {
-	strPtr := func(s string) *string { return &s }
-	intPtr := func(i int) *int { return &i }
-	floatPtr := func(f float64) *float64 { return &f }
-
-	args := &Args{
-		FeedsFile:          "/tmp/feeds.txt",
-		Stdin:              true,
-		Prompt:             "Test prompt",
-		MaxArticlesPerFeed: intPtr(5),
-		MaxDaysOld:         intPtr(14),
-		MaxTotalArticles:   intPtr(50),
-		IncludeKeywords:    "linux,opensource",
-		ExcludeKeywords:    "advertisement",
-		APIKey:             strPtr("sk-test-key"),
-		Model:              strPtr("custom-model"),
-		MaxTokens:          intPtr(2000),
-		Temperature:        floatPtr(0.5),
-		SystemPrompt:       "Custom system prompt",
-		Output:             "json",
-		OutputFile:         "/tmp/output.json",
-		IncludeArticles:    true,
-		Plain:              true,
-	}
-
-	viperMap := args.ToViperMap()
-
-	tests := []struct {
-		key      string
-		expected any
-	}{
-		{"max_articles_per_feed", 5},
-		{"max_days_old", 14},
-		{"max_total_articles", 50},
-		{"include_keywords", "linux,opensource"},
-		{"exclude_keywords", "advertisement"},
-		{"api_key", "sk-test-key"},
-		{"model", "custom-model"},
-		{"max_tokens", 2000},
-		{"temperature", 0.5},
-		{"system_prompt", "Custom system prompt"},
-		{"output", "json"},
-		{"output_file", "/tmp/output.json"},
-		{"include_articles", true},
-		{"plain", true},
-		{"stdin", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.key, func(t *testing.T) {
-			if got, ok := viperMap[tt.key]; !ok {
-				t.Errorf("Key %q not found in viper map", tt.key)
-			} else if got != tt.expected {
-				t.Errorf("viperMap[%q] = %v, want %v", tt.key, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestDryRunFlag(t *testing.T) {
 	tests := []struct {
 		name        string

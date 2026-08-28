@@ -65,7 +65,6 @@ type Runtime struct {
 	OutputFile         string
 	IncludeArticles    bool
 	Plain              bool
-	Verbose            bool
 	DryRun             bool // skip the LLM call; Execute returns the processed articles
 
 	// Progress is the logger/progress handler injected by the caller.
