@@ -169,26 +169,17 @@ func (r *Runtime) Execute(ctx context.Context) (Result, error) {
 		return result, nil
 	}
 
-	// Step 3: Initialise LLM client
+	// Step 3: Validate the LLM summariser
 	r.Progress.SetStage(progress.StageConnecting)
 	r.Progress.SetSubStage("Using model: " + r.Model)
 
+	// The caller (main) injects the production LLM client; tests inject a
+	// fake. A nil summariser in a non-dry-run run is a wiring error.
 	summariser := r.Summariser
 	if summariser == nil {
-		client, err := llm.NewLLMClient(
-			r.APIKey,
-			r.BaseURL,
-			r.Model,
-			r.MaxTokens,
-			r.Temperature,
-			r.LLMTimeout,
-		)
-		if err != nil {
-			return Result{}, fmt.Errorf("error initialising LLM client: %w", err)
-		}
-		client.SetLogger(r.Progress)
-		summariser = client
+		return Result{}, errors.New("no LLM summariser configured for this run")
 	}
+	summariser.SetLogger(r.Progress)
 
 	// Step 4: Get summary from LLM
 	r.Progress.SetStage(progress.StageGettingSummary)

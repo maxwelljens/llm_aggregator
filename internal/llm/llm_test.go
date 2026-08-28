@@ -35,14 +35,10 @@ func TestNewLLMClientTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// API key is required; use a placeholder
-			client, err := NewLLMClient(
-				"test-api-key",
-				"",
-				"",
-				0,
-				nil,
-				tt.timeout,
-			)
+			client, err := NewLLMClient(Options{
+				APIKey:         "test-api-key",
+				TimeoutSeconds: tt.timeout,
+			})
 			if err != nil {
 				t.Fatalf("NewLLMClient returned unexpected error: %v", err)
 			}
@@ -55,7 +51,7 @@ func TestNewLLMClientTimeout(t *testing.T) {
 
 func TestNewLLMClientDefaults(t *testing.T) {
 	// Verify all defaults are applied when only API key is provided
-	client, err := NewLLMClient("test-api-key", "", "", 0, nil, 0)
+	client, err := NewLLMClient(Options{APIKey: "test-api-key"})
 	if err != nil {
 		t.Fatalf("NewLLMClient returned unexpected error: %v", err)
 	}
@@ -75,7 +71,7 @@ func TestNewLLMClientDefaults(t *testing.T) {
 }
 
 func TestNewLLMClientRequiresAPIKey(t *testing.T) {
-	_, err := NewLLMClient("", "", "", 0, nil, 0)
+	_, err := NewLLMClient(Options{})
 	if err == nil {
 		t.Error("NewLLMClient expected error for missing API key, got nil")
 	}
@@ -157,5 +153,41 @@ func TestCreateMessages(t *testing.T) {
 	content := user.Content.OfString.Value
 	if !strings.Contains(content, "summarise") || !strings.Contains(content, "Alpha") {
 		t.Errorf("user message should include prompt and context, got %q", content)
+	}
+}
+
+func TestNewLLMClientOptions(t *testing.T) {
+	temperature := 0.5
+	client, err := NewLLMClient(Options{
+		APIKey:         "test-api-key",
+		BaseURL:        "https://example.com",
+		Model:          "test-model",
+		MaxTokens:      100,
+		Temperature:    &temperature,
+		TimeoutSeconds: 30,
+	})
+	if err != nil {
+		t.Fatalf("NewLLMClient returned unexpected error: %v", err)
+	}
+	if client.model != "test-model" {
+		t.Errorf("model = %q, want %q", client.model, "test-model")
+	}
+	if client.maxTokens != 100 {
+		t.Errorf("maxTokens = %d, want 100", client.maxTokens)
+	}
+	if client.temperature == nil || *client.temperature != 0.5 {
+		t.Errorf("temperature = %v, want 0.5", client.temperature)
+	}
+	if client.llmTimeout != 30 {
+		t.Errorf("llmTimeout = %d, want 30", client.llmTimeout)
+	}
+}
+
+func TestNewLLMClientNoEnvFallback(t *testing.T) {
+	t.Setenv("LLM_AGGREGATOR_API_KEY", "from-env")
+
+	_, err := NewLLMClient(Options{})
+	if err == nil {
+		t.Error("expected error for missing API key even when the env var is set; the config layer owns env resolution")
 	}
 }

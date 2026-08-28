@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/cli"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/config"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/llm"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/runtime"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/signals"
@@ -58,10 +59,21 @@ func run(rt *runtime.Runtime, args *cli.Args, sh *signals.SignalHandler, stdout,
 		return runDryRun(rt, args.Verbose, stdout, stderr)
 	}
 
-	if rt.APIKey == "" {
-		sh.Stop()
-		fmt.Fprintln(stderr, style.Errorf("OpenAI-compatible API key is required. Set via --api-key, %s environment variable, or config file.", "LLM_AGGREGATOR_API_KEY"))
-		return 1
+	if rt.Summariser == nil {
+		client, err := llm.NewLLMClient(llm.Options{
+			APIKey:         rt.APIKey,
+			BaseURL:        rt.BaseURL,
+			Model:          rt.Model,
+			MaxTokens:      rt.MaxTokens,
+			Temperature:    rt.Temperature,
+			TimeoutSeconds: rt.LLMTimeout,
+		})
+		if err != nil {
+			sh.Stop()
+			fmt.Fprintln(stderr, style.Errorf("%v", err))
+			return 1
+		}
+		rt.Summariser = client
 	}
 
 	if args.TUI {

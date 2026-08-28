@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -15,6 +14,18 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 )
+
+// Options configures an LLMClient. APIKey is required; the config layer
+// resolves it (CLI flag, LLM_AGGREGATOR_API_KEY env var, config file) before
+// constructing the client, so this package never reads the environment.
+type Options struct {
+	APIKey         string
+	BaseURL        string
+	Model          string
+	MaxTokens      int
+	Temperature    *float64
+	TimeoutSeconds int
+}
 
 // LLMClient is a client for interacting with LLM API.
 type LLMClient struct {
@@ -27,40 +38,40 @@ type LLMClient struct {
 }
 
 // NewLLMClient creates an LLM API client.
-// Set apiKey to "" to read from LLM_AGGREGATOR_API_KEY.
-func NewLLMClient(apiKey, baseURL, model string, maxTokens int, temperature *float64, timeoutSeconds int) (*LLMClient, error) {
-	// Get API key from parameter or environment variable
-	if apiKey == "" {
-		apiKey = os.Getenv("LLM_AGGREGATOR_API_KEY")
-	}
-	if apiKey == "" || strings.TrimSpace(apiKey) == "" {
+func NewLLMClient(opts Options) (*LLMClient, error) {
+	if opts.APIKey == "" || strings.TrimSpace(opts.APIKey) == "" {
 		return nil, errors.New(
 			"LLM API key is required. " +
-				"Set LLM_AGGREGATOR_API_KEY environment variable or pass apiKey parameter",
+				"Set via --api-key, LLM_AGGREGATOR_API_KEY environment variable, or config file",
 		)
 	}
 
 	// Set defaults using central constants
+	baseURL := opts.BaseURL
 	if baseURL == "" {
 		baseURL = defaults.DefaultBaseURL
 	}
+	model := opts.Model
 	if model == "" {
 		model = defaults.DefaultModel
 	}
+	maxTokens := opts.MaxTokens
 	if maxTokens == 0 {
 		maxTokens = defaults.DefaultMaxTokens
 	}
+	temperature := opts.Temperature
 	if temperature == nil {
 		t := defaults.DefaultTemperature
 		temperature = &t
 	}
+	timeoutSeconds := opts.TimeoutSeconds
 	if timeoutSeconds == 0 {
 		timeoutSeconds = defaults.DefaultLLMTimeout
 	}
 
 	// Create OpenAI client configured for LLM
 	clientOpts := []option.RequestOption{
-		option.WithAPIKey(apiKey),
+		option.WithAPIKey(opts.APIKey),
 		option.WithBaseURL(baseURL),
 	}
 

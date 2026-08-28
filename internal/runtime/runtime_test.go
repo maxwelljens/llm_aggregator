@@ -264,3 +264,19 @@ func TestWriteOutputFormatted(t *testing.T) {
 		}
 	}
 }
+
+// TestExecuteRequiresSummariser verifies a non-dry-run Execute without an
+// injected Summariser fails instead of constructing a real LLM client.
+func TestExecuteRequiresSummariser(t *testing.T) {
+	withStdinFeed(t)
+	rt := baseRuntime(nil)
+	rt.Stdin = true
+
+	_, err := rt.Execute(context.Background())
+	if err == nil {
+		t.Fatal("expected error for missing summariser, got nil")
+	}
+	if !strings.Contains(err.Error(), "summariser") {
+		t.Errorf("error %q does not mention the summariser", err.Error())
+	}
+}
