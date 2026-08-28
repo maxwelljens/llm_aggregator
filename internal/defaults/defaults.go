@@ -22,6 +22,14 @@ const (
 	// DefaultMaxTotalArticles is the default max total articles.
 	DefaultMaxTotalArticles = 20
 
+	// DefaultMaxContentLength caps raw article content extracted from feeds.
+	DefaultMaxContentLength = 5000
+	// DefaultMaxContentPerArticle caps per-article content sent to the LLM.
+	DefaultMaxContentPerArticle = 3000
+
+	// TruncatedSuffix is appended to content shortened to a maximum length.
+	TruncatedSuffix = "... [truncated]"
+
 	// DefaultOutput is the default output format.
 	DefaultOutput = "text"
 	// DefaultIncludeArticles is the default for including articles.

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 
 	"github.com/PuerkitoBio/goquery"
@@ -40,7 +41,7 @@ func NewFeedAggregator(maxArticlesPerFeed, maxDaysOld, maxContentLength int, pro
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		userAgent: "LLM-Aggregator/0.1.0 (+https://codeberg.org/maxwelljensen/llm-aggregator)",
+		userAgent: "LLM-Aggregator (+https://codeberg.org/maxwelljensen/llm-aggregator)",
 		progress:  prog,
 	}
 }
@@ -267,7 +268,7 @@ func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cu
 
 	// Truncate content if too long
 	if len(content) > fa.maxContentLength {
-		content = content[:fa.maxContentLength] + "... [truncated]"
+		content = content[:fa.maxContentLength] + defaults.TruncatedSuffix
 	}
 
 	return &Article{

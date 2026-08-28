@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
 
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/llm"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/output"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/processor"
@@ -87,7 +88,7 @@ func (r *Runtime) Execute(ctx context.Context) (Result, error) {
 	feedAgg := aggregator.NewFeedAggregator(
 		r.MaxArticlesPerFeed,
 		r.MaxDaysOld,
-		5000, // max content length
+		defaults.DefaultMaxContentLength,
 		r.Progress,
 	)
 
@@ -141,7 +142,7 @@ func (r *Runtime) Execute(ctx context.Context) (Result, error) {
 
 	contentProc := processor.NewContentProcessor(
 		r.MaxTotalArticles,
-		3000, // max content per article
+		defaults.DefaultMaxContentPerArticle,
 		r.IncludeKeywords,
 		r.ExcludeKeywords,
 	)

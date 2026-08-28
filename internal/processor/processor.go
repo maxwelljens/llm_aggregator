@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/aggregator"
+	"codeberg.org/maxwelljensen/llm_aggregator/internal/defaults"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/progress"
 	"codeberg.org/maxwelljensen/llm_aggregator/internal/tokeniser"
 )
@@ -82,7 +83,7 @@ func (cp *ContentProcessor) ProcessArticles(articles []*aggregator.Article, sort
 func (cp *ContentProcessor) truncateContent(articles []*aggregator.Article) {
 	for _, article := range articles {
 		if len(article.Content) > cp.maxContentPerArticle {
-			article.Content = article.Content[:cp.maxContentPerArticle] + "... [truncated]"
+			article.Content = article.Content[:cp.maxContentPerArticle] + defaults.TruncatedSuffix
 		}
 	}
 }
