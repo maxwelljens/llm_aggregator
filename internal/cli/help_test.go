@@ -264,7 +264,7 @@ func TestWriteHelp(t *testing.T) {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
 	defer func() { _ = os.Remove(tmpFile.Name()) }() //nolint:errcheck
-	_ = tmpFile.Close()                               //nolint:errcheck
+	_ = tmpFile.Close()                              //nolint:errcheck
 
 	w, err := os.OpenFile(tmpFile.Name(), os.O_WRONLY, 0644)
 	if err != nil {
