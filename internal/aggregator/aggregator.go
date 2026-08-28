@@ -46,19 +46,22 @@ func NewFeedAggregator(maxArticlesPerFeed, maxDaysOld, maxContentLength int, pro
 }
 
 // ParseFeedsFromFile parses RSS feeds from a file containing one URL per line.
-// Feeds are fetched concurrently for improved performance.
-func (fa *FeedAggregator) ParseFeedsFromFile(filePath string) ([]*Article, error) {
+// Feeds are fetched concurrently for improved performance; ctx cancellation
+// (e.g. SIGINT) aborts in-flight fetches. If the file lists feeds but none of
+// them can be fetched, the collected errors are returned as an error instead
+// of an empty article list.
+func (fa *FeedAggregator) ParseFeedsFromFile(ctx context.Context, filePath string) ([]*Article, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open feeds file: %w", err)
 	}
 	defer file.Close() //nolint:errcheck
 
-	return fa.parseFeedsFromReader(file, filePath)
+	return fa.parseFeedsFromReader(ctx, file, filePath)
 }
 
 // ParseFeedFromStdin parses a single RSS/Atom feed from stdin.
-func (fa *FeedAggregator) ParseFeedFromStdin() ([]*Article, error) {
+func (fa *FeedAggregator) ParseFeedFromStdin(ctx context.Context) ([]*Article, error) {
 	return fa.ParseFeedFromReader(os.Stdin, "stdin")
 }
 
@@ -76,6 +79,132 @@ func (fa *FeedAggregator) ParseFeedFromReader(reader io.Reader, sourceName strin
 		feedTitle = sourceName
 	}
 
+	return fa.articlesFromFeed(feed, feedTitle), nil
+}
+
+// parseFeedsFromReader reads feed URLs line-by-line from any io.Reader,
+// then fetches each feed concurrently. Used by both file and stdin paths.
+func (fa *FeedAggregator) parseFeedsFromReader(ctx context.Context, reader io.Reader, sourceName string) ([]*Article, error) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read feeds from %s: %w", sourceName, err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+	feedURLs := []string{}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && !strings.HasPrefix(line, "#") {
+			feedURLs = append(feedURLs, line)
+		}
+	}
+
+	if fa.progress != nil {
+		fa.progress.Logf("Found %d feed URLs in %s", len(feedURLs), sourceName)
+	}
+
+	// errgroup both bounds concurrency and propagates ctx cancellation to
+	// in-flight fetches.
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxFeedConcurrency)
+
+	var mu sync.Mutex
+	var allArticles []*Article
+	var feedErrors []string
+
+	for i, feedURL := range feedURLs {
+		currentIndex := i
+		g.Go(func() error {
+			if fa.progress != nil {
+				fa.progress.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
+			}
+			feedArticles, err := fa.ParseFeed(gctx, feedURL)
+			if err != nil {
+				if gctx.Err() != nil {
+					return gctx.Err() // cancelled: stop instead of collecting errors
+				}
+				if fa.progress != nil {
+					fa.progress.Warningf("Failed to parse feed %s: %v", feedURL, err)
+				}
+				mu.Lock()
+				feedErrors = append(feedErrors, fmt.Sprintf("%s: %v", feedURL, err))
+				mu.Unlock()
+				return nil // keep processing the other feeds
+			}
+			mu.Lock()
+			allArticles = append(allArticles, feedArticles...)
+			mu.Unlock()
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, fmt.Errorf("failed to process feeds: %w", err)
+	}
+
+	if len(feedErrors) > 0 {
+		if fa.progress != nil {
+			fa.progress.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
+		}
+		if len(allArticles) == 0 {
+			return nil, fmt.Errorf("none of the %d feeds could be fetched: %s",
+				len(feedURLs), strings.Join(feedErrors, "; "))
+		}
+	}
+
+	return allArticles, nil
+}
+
+// maxFeedConcurrency bounds how many feeds are fetched at once to avoid
+// overwhelming servers.
+const maxFeedConcurrency = 10
+
+// fetchURL fetches url through the aggregator's HTTP client with the
+// configured User-Agent, returning the response body for the caller to close.
+func (fa *FeedAggregator) fetchURL(ctx context.Context, url string) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", fa.userAgent)
+
+	resp, err := fa.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close() //nolint:errcheck
+		return nil, fmt.Errorf("HTTP status %d", resp.StatusCode)
+	}
+	return resp.Body, nil
+}
+
+// ParseFeed fetches a single RSS/Atom feed over HTTP (through the injected
+// client, honouring ctx) and extracts its articles.
+func (fa *FeedAggregator) ParseFeed(ctx context.Context, feedURL string) ([]*Article, error) {
+	body, err := fa.fetchURL(ctx, feedURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch feed URL %s: %w", feedURL, err)
+	}
+	defer body.Close() //nolint:errcheck
+
+	fp := gofeed.NewParser()
+	feed, err := fp.Parse(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse feed URL %s: %w", feedURL, err)
+	}
+
+	feedTitle := feed.Title
+	if feedTitle == "" {
+		feedTitle = feedURL
+	}
+
+	return fa.articlesFromFeed(feed, feedTitle), nil
+}
+
+// articlesFromFeed converts feed items into Articles, applying the per-feed
+// limit and the max-days-old cutoff.
+func (fa *FeedAggregator) articlesFromFeed(feed *gofeed.Feed, feedTitle string) []*Article {
 	if fa.progress != nil {
 		fa.progress.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
 	}
@@ -95,114 +224,7 @@ func (fa *FeedAggregator) ParseFeedFromReader(reader io.Reader, sourceName strin
 		}
 	}
 
-	return articles, nil
-}
-
-// parseFeedsFromReader reads feed URLs line-by-line from any io.Reader,
-// then fetches each feed concurrently. Used by both file and stdin paths.
-func (fa *FeedAggregator) parseFeedsFromReader(reader io.Reader, sourceName string) ([]*Article, error) {
-	content, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read feeds from %s: %w", sourceName, err)
-	}
-
-	lines := strings.Split(string(content), "\n")
-	feedURLs := []string{}
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "#") {
-			feedURLs = append(feedURLs, line)
-		}
-	}
-
-	if fa.progress != nil {
-		fa.progress.Logf("Found %d feed URLs in %s", len(feedURLs), sourceName)
-	}
-
-	// Use mutex to protect shared state
-	var mu sync.Mutex
-	var allArticles []*Article
-	var feedErrors []string
-
-	// Limit concurrency to avoid overwhelming servers
-	// NOTE: maxConcurrency is hardcoded to 10. Changing this requires a code
-	// modification.
-	const maxConcurrency = 10
-	sem := make(chan struct{}, maxConcurrency)
-
-	g, _ := errgroup.WithContext(context.Background())
-	for i, feedURL := range feedURLs {
-		currentIndex := i
-		sem <- struct{}{} // Acquire semaphore
-		g.Go(func() error {
-			defer func() { <-sem }() // Release semaphore
-			if fa.progress != nil {
-				fa.progress.Logf("Processing feed %d/%d: %s", currentIndex+1, len(feedURLs), feedURL)
-			}
-			feedArticles, err := fa.ParseFeed(feedURL)
-			if err != nil {
-				if fa.progress != nil {
-					fa.progress.Warningf("Failed to parse feed %s: %v", feedURL, err)
-				}
-				mu.Lock()
-				feedErrors = append(feedErrors, fmt.Sprintf("%s: %v", feedURL, err))
-				mu.Unlock()
-				return nil // Don't return error to continue processing other feeds
-			}
-			mu.Lock()
-			allArticles = append(allArticles, feedArticles...)
-			mu.Unlock()
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return nil, fmt.Errorf("failed to process feeds: %w", err)
-	}
-
-	if len(feedErrors) > 0 {
-		if fa.progress != nil {
-			fa.progress.Warningf("Encountered %d feed errors: %v", len(feedErrors), feedErrors)
-		}
-	}
-
-	return allArticles, nil
-}
-
-// ParseFeed parses a single RSS feed and extracts articles.
-func (fa *FeedAggregator) ParseFeed(feedURL string) ([]*Article, error) {
-	articles := []*Article{}
-
-	fp := gofeed.NewParser()
-	feed, err := fp.ParseURL(feedURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse feed URL %s: %w", feedURL, err)
-	}
-
-	feedTitle := feed.Title
-	if feedTitle == "" {
-		feedTitle = feedURL
-	}
-
-	if fa.progress != nil {
-		fa.progress.Logf("Parsing feed: %s (%d entries)", feedTitle, len(feed.Items))
-	}
-
-	var cutoffTime time.Time
-	if fa.maxDaysOld > 0 {
-		cutoffTime = time.Now().Add(-time.Duration(fa.maxDaysOld) * 24 * time.Hour)
-	}
-
-	maxItems := min(fa.maxArticlesPerFeed, len(feed.Items))
-
-	for _, item := range feed.Items[:maxItems] {
-		article := fa.extractArticle(item, feedTitle, cutoffTime)
-		if article != nil {
-			articles = append(articles, article)
-		}
-	}
-
-	return articles, nil
+	return articles
 }
 
 func (fa *FeedAggregator) extractArticle(item *gofeed.Item, feedTitle string, cutoffTime time.Time) *Article {

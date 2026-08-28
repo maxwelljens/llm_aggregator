@@ -106,11 +106,11 @@ func (r *Runtime) Execute(ctx context.Context) (Result, error) {
 		var stdinArticles []*aggregator.Article
 		var fileArticles []*aggregator.Article
 
-		if stdinArticles, err = feedAgg.ParseFeedFromStdin(); err != nil {
+		if stdinArticles, err = feedAgg.ParseFeedFromStdin(ctx); err != nil {
 			return Result{}, fmt.Errorf("error parsing stdin feed: %w", err)
 		}
 
-		if fileArticles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
+		if fileArticles, err = feedAgg.ParseFeedsFromFile(ctx, r.FeedsFile); err != nil {
 			return Result{}, fmt.Errorf("error aggregating feeds: %w", err)
 		}
 
@@ -118,13 +118,13 @@ func (r *Runtime) Execute(ctx context.Context) (Result, error) {
 	case r.Stdin:
 		// Stdin only
 		r.Progress.SetSubStage("Parsing stdin feed")
-		if articles, err = feedAgg.ParseFeedFromStdin(); err != nil {
+		if articles, err = feedAgg.ParseFeedFromStdin(ctx); err != nil {
 			return Result{}, fmt.Errorf("error parsing stdin feed: %w", err)
 		}
 	case r.FeedsFile != "":
 		// Feeds file only
 		r.Progress.SetSubStage("Parsing feeds from " + r.FeedsFile)
-		if articles, err = feedAgg.ParseFeedsFromFile(r.FeedsFile); err != nil {
+		if articles, err = feedAgg.ParseFeedsFromFile(ctx, r.FeedsFile); err != nil {
 			return Result{}, fmt.Errorf("error aggregating feeds: %w", err)
 		}
 	default:

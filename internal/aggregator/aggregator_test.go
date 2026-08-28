@@ -1,7 +1,12 @@
 package aggregator
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -62,7 +67,7 @@ func TestNewFeedAggregator(t *testing.T) {
 func TestParseFeedsFromFileNotFound(t *testing.T) {
 	fa := NewFeedAggregator(10, 7, 5000, nil)
 
-	_, err := fa.ParseFeedsFromFile("/nonexistent/path/to/feeds.txt")
+	_, err := fa.ParseFeedsFromFile(context.Background(), "/nonexistent/path/to/feeds.txt")
 	if err == nil {
 		t.Error("Expected error for non-existent file")
 	}
@@ -81,7 +86,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 		}
 
 		fa := NewFeedAggregator(10, 7, 5000, nil)
-		articles, err := fa.ParseFeedsFromFile(tmpFile)
+		articles, err := fa.ParseFeedsFromFile(context.Background(), tmpFile)
 
 		// Empty file should not cause an error
 		if err != nil {
@@ -98,7 +103,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 		}
 
 		fa := NewFeedAggregator(10, 7, 5000, nil)
-		articles, err := fa.ParseFeedsFromFile(tmpFile)
+		articles, err := fa.ParseFeedsFromFile(context.Background(), tmpFile)
 
 		if err != nil {
 			t.Errorf("Unexpected error: %v", err)
@@ -116,7 +121,7 @@ func TestParseFeedsFromFileEmpty(t *testing.T) {
 
 		fa := NewFeedAggregator(10, 7, 5000, nil)
 		// This will fail to fetch but shouldn't crash
-		_, err := fa.ParseFeedsFromFile(tmpFile)
+		_, err := fa.ParseFeedsFromFile(context.Background(), tmpFile)
 
 		// We expect network errors but not parsing errors
 		// (If feeds are unreachable, that's okay for this test)
@@ -322,7 +327,7 @@ func TestEmptyFeedsFile(t *testing.T) {
 
 	// Use WithProgress to avoid nil pointer dereference
 	fa := NewFeedAggregator(10, 7, 5000, &progress.NoopLogger{})
-	articles, err := fa.ParseFeedsFromFile(tmpFile)
+	articles, err := fa.ParseFeedsFromFile(context.Background(), tmpFile)
 
 	if err != nil {
 		t.Errorf("Expected no error for empty file, got: %v", err)
@@ -415,5 +420,80 @@ func TestFeedAggregatorAcceptsBareLogger(t *testing.T) {
 	agg := NewFeedAggregator(10, 7, 5000, aggBareLogger{})
 	if agg == nil {
 		t.Fatal("aggregator is nil")
+	}
+}
+
+const httpTestFeed = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>HTTP Feed</title>
+  <entry>
+    <title>HTTP Article</title>
+    <link href="https://example.com/http1"/>
+    <content>Full content served over HTTP.</content>
+    <updated>2024-01-15T10:00:00Z</updated>
+  </entry>
+</feed>`
+
+// serveFeed spins up a server that serves httpTestFeed and records request headers.
+func serveFeed(t *testing.T) (*httptest.Server, *string) {
+	t.Helper()
+	ua := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ua = r.Header.Get("User-Agent")
+		w.Header().Set("Content-Type", "application/atom+xml")
+		_, _ = fmt.Fprint(w, httpTestFeed)
+	}))
+	t.Cleanup(server.Close)
+	return server, &ua
+}
+
+// TestParseFeedUsesInjectedClient verifies feed fetching goes through the
+// aggregator's own HTTP client (identifiable by its User-Agent) rather than
+// gofeed's default, and that the context is honoured.
+func TestParseFeedUsesInjectedClient(t *testing.T) {
+	server, ua := serveFeed(t)
+	fa := NewFeedAggregator(10, 0, 5000, nil)
+
+	articles, err := fa.ParseFeed(context.Background(), server.URL)
+	if err != nil {
+		t.Fatalf("ParseFeed returned unexpected error: %v", err)
+	}
+	if len(articles) != 1 || articles[0].Title != "HTTP Article" {
+		t.Fatalf("articles = %+v, want one HTTP Article", articles)
+	}
+	if !strings.Contains(*ua, "LLM-Aggregator") {
+		t.Errorf("request User-Agent = %q, want the aggregator's own", *ua)
+	}
+}
+
+func TestParseFeedRespectsCancelledContext(t *testing.T) {
+	server, _ := serveFeed(t)
+	fa := NewFeedAggregator(10, 0, 5000, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := fa.ParseFeed(ctx, server.URL); err == nil {
+		t.Fatal("expected error for cancelled context, got nil")
+	}
+}
+
+// TestParseFeedsFromFileAllFeedsFail verifies total feed failure surfaces as
+// an error instead of an empty article list.
+func TestParseFeedsFromFileAllFeedsFail(t *testing.T) {
+	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	dead.Close() // nothing is listening any more
+
+	feedsFile := filepath.Join(t.TempDir(), "feeds.txt")
+	if err := os.WriteFile(feedsFile, []byte(dead.URL+"\n"), 0644); err != nil {
+		t.Fatalf("write feeds file: %v", err)
+	}
+
+	fa := NewFeedAggregator(10, 0, 5000, nil)
+	articles, err := fa.ParseFeedsFromFile(context.Background(), feedsFile)
+	if err == nil {
+		t.Fatalf("expected error when every feed fails, got %d articles", len(articles))
 	}
 }
