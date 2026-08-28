@@ -148,10 +148,10 @@ func New(execute ExecuteFunc, ctx context.Context) *Model {
 	sp.Style = lipgloss.NewStyle().Foreground(colorHighlight)
 
 	return &Model{
-		progress:  prog,
-		spinner:   sp,
-		execute:   execute,
-		ctx:       ctx,
+		progress:   prog,
+		spinner:    sp,
+		execute:    execute,
+		ctx:        ctx,
 		status:     "Initialising...",
 		subStatus:  "Loading configuration",
 		startTime:  time.Now(),

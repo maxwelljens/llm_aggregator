@@ -24,12 +24,12 @@ type FeedAggregator struct {
 	maxContentLength   int
 	client             *http.Client
 	userAgent          string
-	progress           progress.Progress
+	progress           progress.Logger
 }
 
 // NewFeedAggregator creates a FeedAggregator with progress reporting.
 // prog may be nil; nil means no output (NoopLogger).
-func NewFeedAggregator(maxArticlesPerFeed, maxDaysOld, maxContentLength int, prog progress.Progress) *FeedAggregator {
+func NewFeedAggregator(maxArticlesPerFeed, maxDaysOld, maxContentLength int, prog progress.Logger) *FeedAggregator {
 	if prog == nil {
 		prog = &progress.NoopLogger{}
 	}

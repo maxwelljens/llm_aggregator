@@ -21,7 +21,7 @@ import (
 // pipeline without a network call. The production adapter is llm.LLMClient.
 type Summariser interface {
 	SummariseArticles(articles []*aggregator.Article, userPrompt, systemPrompt string, ctx context.Context) (string, *llm.TokenUsage, error)
-	SetLogger(progress progress.Progress)
+	SetLogger(progress progress.Logger)
 }
 
 // Result carries the outcome of an Execute run. State is returned rather

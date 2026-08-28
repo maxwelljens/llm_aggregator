@@ -15,7 +15,7 @@ type ContentProcessor struct {
 	maxContentPerArticle int
 	filterKeywords       []string
 	excludeKeywords      []string
-	logger               progress.Progress
+	logger               progress.Logger
 }
 
 // NewContentProcessor creates a processor that filters and truncates articles.
@@ -42,7 +42,7 @@ func NewContentProcessor(maxTotalArticles, maxContentPerArticle int, filterKeywo
 }
 
 // SetLogger sets the logger for the processor; nil means no output.
-func (cp *ContentProcessor) SetLogger(logger progress.Progress) {
+func (cp *ContentProcessor) SetLogger(logger progress.Logger) {
 	if logger == nil {
 		logger = &progress.NoopLogger{}
 	}

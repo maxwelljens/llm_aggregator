@@ -25,10 +25,9 @@ const (
 	StageGettingSummary Stage = "Getting summary"
 )
 
-// Progress extends Logger with stage/count/timing reporting.
-// Implementations: NoopLogger (no output), SimpleLogger (stdout), TUIProgress (tea messages).
-type Progress interface {
-	Logger
+// StageReporter receives pipeline stage transitions. Only runtimes that
+// display progress (the TUI) implement it meaningfully.
+type StageReporter interface {
 	SetStage(stage Stage)
 	SetSubStage(status string)
 	SetArticleCount(total, processed int)
@@ -36,8 +35,26 @@ type Progress interface {
 	StartWaiting()
 }
 
+// Progress is the full reporting interface the pipeline driver talks to:
+// logging plus stage reporting. Logging-only components should accept
+// Logger instead so adapters only implement what they use.
+type Progress interface {
+	Logger
+	StageReporter
+}
+
+// noStages provides empty stage reporting for adapters that only log.
+type noStages struct{}
+
+func (noStages) SetStage(Stage)            {}
+func (noStages) SetSubStage(string)        {}
+func (noStages) SetArticleCount(int, int)  {}
+func (noStages) SetTokenEstimate(int, int) {}
+func (noStages) StartWaiting()             {}
+
 // SimpleLogger writes formatted output to an io.Writer.
 type SimpleLogger struct {
+	noStages
 	writer io.Writer
 	debug  bool
 }
@@ -65,12 +82,6 @@ func (sl *SimpleLogger) Debugf(format string, args ...any) {
 		_, _ = fmt.Fprintf(sl.writer, "%s\n", style.Debugf(format, args...))
 	}
 }
-
-func (sl *SimpleLogger) SetStage(stage Stage)                 {}
-func (sl *SimpleLogger) SetSubStage(stage string)             {}
-func (sl *SimpleLogger) SetArticleCount(total, processed int) {}
-func (sl *SimpleLogger) SetTokenEstimate(total, used int)     {}
-func (sl *SimpleLogger) StartWaiting()                        {}
 
 // NoopLogger discards all output. Used as the default when no progress is desired.
 type NoopLogger struct{}

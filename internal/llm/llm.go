@@ -34,7 +34,7 @@ type LLMClient struct {
 	maxTokens   int
 	temperature *float64
 	llmTimeout  int // seconds; 0 means no timeout
-	logger      progress.Progress
+	logger      progress.Logger
 }
 
 // NewLLMClient creates an LLM API client.
@@ -88,7 +88,7 @@ func NewLLMClient(opts Options) (*LLMClient, error) {
 }
 
 // SetLogger sets the logger for the LLM client; nil means no output.
-func (dc *LLMClient) SetLogger(logger progress.Progress) {
+func (dc *LLMClient) SetLogger(logger progress.Logger) {
 	if logger == nil {
 		logger = &progress.NoopLogger{}
 	}

@@ -404,3 +404,16 @@ func TestParseFeedFromStdin(t *testing.T) {
 		t.Errorf("Expected 2 articles, got %d", len(articles))
 	}
 }
+
+type aggBareLogger struct{}
+
+func (aggBareLogger) Logf(string, ...any)     {}
+func (aggBareLogger) Warningf(string, ...any) {}
+func (aggBareLogger) Debugf(string, ...any)   {}
+
+func TestFeedAggregatorAcceptsBareLogger(t *testing.T) {
+	agg := NewFeedAggregator(10, 7, 5000, aggBareLogger{})
+	if agg == nil {
+		t.Fatal("aggregator is nil")
+	}
+}

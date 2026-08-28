@@ -191,3 +191,17 @@ func TestNewLLMClientNoEnvFallback(t *testing.T) {
 		t.Error("expected error for missing API key even when the env var is set; the config layer owns env resolution")
 	}
 }
+
+type llmBareLogger struct{}
+
+func (llmBareLogger) Logf(string, ...any)     {}
+func (llmBareLogger) Warningf(string, ...any) {}
+func (llmBareLogger) Debugf(string, ...any)   {}
+
+func TestLLMClientAcceptsBareLogger(t *testing.T) {
+	client, err := NewLLMClient(Options{APIKey: "test-key"})
+	if err != nil {
+		t.Fatalf("NewLLMClient returned unexpected error: %v", err)
+	}
+	client.SetLogger(llmBareLogger{})
+}

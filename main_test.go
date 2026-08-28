@@ -66,7 +66,7 @@ func (f *fakeSummariser) SummariseArticles(_ []*aggregator.Article, _, _ string,
 	return f.summary, &llm.TokenUsage{PromptTokens: 10, CompletionTokens: 5}, f.err
 }
 
-func (f *fakeSummariser) SetLogger(_ progress.Progress) {}
+func (f *fakeSummariser) SetLogger(_ progress.Logger) {}
 
 func stdinArgs() *cli.Args {
 	return &cli.Args{Stdin: true, Prompt: "test prompt"}

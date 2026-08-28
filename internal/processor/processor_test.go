@@ -394,3 +394,17 @@ func createTestArticles() []*aggregator.Article {
 		},
 	}
 }
+
+// bareLogger implements only progress.Logger, verifying the processor's seam
+// does not force callers into the full Progress interface.
+type bareLogger struct{}
+
+func (bareLogger) Logf(string, ...any)     {}
+func (bareLogger) Warningf(string, ...any) {}
+func (bareLogger) Debugf(string, ...any)   {}
+
+func TestContentProcessorAcceptsBareLogger(t *testing.T) {
+	cp := NewContentProcessor(10, 100, nil, nil)
+	cp.SetLogger(bareLogger{})
+	cp.ProcessArticles(nil, "date", true)
+}

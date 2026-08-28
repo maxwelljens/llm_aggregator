@@ -45,7 +45,7 @@ func (f *fakeSummariser) SummariseArticles(articles []*aggregator.Article, userP
 	return f.summary, &llm.TokenUsage{PromptTokens: 10, CompletionTokens: 5}, f.err
 }
 
-func (f *fakeSummariser) SetLogger(progress.Progress) {}
+func (f *fakeSummariser) SetLogger(progress.Logger) {}
 
 func (f *fakeSummariser) callCount() int {
 	f.mu.Lock()
