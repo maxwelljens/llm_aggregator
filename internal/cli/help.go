@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"os"
+	"io"
 	"strconv"
 	"strings"
 
@@ -316,7 +316,7 @@ func BuildStyledHelp(args *Args) string {
 	return b.String()
 }
 
-func WriteHelp(args *Args, w *os.File) {
+func WriteHelp(args *Args, w io.Writer) {
 	output := BuildStyledHelp(args)
-	w.WriteString(output) //nolint:errcheck
+	fmt.Fprint(w, output) //nolint:errcheck
 }

@@ -397,7 +397,7 @@ func TestConfigParsingAlwaysPasses(t *testing.T) {
 			os.Args = args
 
 			// Parse arguments - this should never fail for valid inputs
-			parsedArgs, err := cli.ParseArgs()
+			parsedArgs, _, err := cli.ParseArgs()
 			if err != nil {
 				t.Fatalf("Failed to parse CLI args: %v", err)
 			}

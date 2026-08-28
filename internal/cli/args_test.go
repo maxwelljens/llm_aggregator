@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -64,7 +66,7 @@ func TestFeedsFileParsing(t *testing.T) {
 
 				os.Args = append([]string{"llm_aggregator"}, args...)
 
-				parsedArgs, err := ParseArgs()
+				parsedArgs, _, err := ParseArgs()
 				if tt.wantErr {
 					if err == nil {
 						t.Errorf("Expected error for feeds-file %q, got nil", tt.feedsFile)
@@ -131,7 +133,7 @@ func TestPromptParsing(t *testing.T) {
 			}
 			os.Args = append([]string{"llm_aggregator"}, args...)
 
-			parsedArgs, err := ParseArgs()
+			parsedArgs, _, err := ParseArgs()
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error for prompt %q, got nil", tt.prompt)
@@ -217,7 +219,7 @@ func TestAPIKeyParsing(t *testing.T) {
 			}
 			os.Args = append([]string{"llm_aggregator"}, args...)
 
-			parsedArgs, err := ParseArgs()
+			parsedArgs, _, err := ParseArgs()
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error for api-key %q, got nil", tt.apiKey)
@@ -320,7 +322,7 @@ func TestModelParsing(t *testing.T) {
 			}
 			os.Args = append([]string{"llm_aggregator"}, args...)
 
-			parsedArgs, err := ParseArgs()
+			parsedArgs, _, err := ParseArgs()
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error for model %q, got nil", tt.model)
@@ -405,7 +407,7 @@ func TestBaseURLParsing(t *testing.T) {
 			}
 			os.Args = append([]string{"llm_aggregator"}, args...)
 
-			parsedArgs, err := ParseArgs()
+			parsedArgs, _, err := ParseArgs()
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error for base-url %q, got nil", tt.baseURL)
@@ -538,7 +540,7 @@ func TestDryRunFlag(t *testing.T) {
 
 			os.Args = append([]string{"llm_aggregator"}, tt.args...)
 
-			parsedArgs, err := ParseArgs()
+			parsedArgs, _, err := ParseArgs()
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error, got nil")
@@ -551,5 +553,95 @@ func TestDryRunFlag(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// captureStdout runs fn while capturing everything written to os.Stdout.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe: %v", err)
+	}
+	old := os.Stdout
+	os.Stdout = w
+	fn()
+	if err := w.Close(); err != nil {
+		t.Fatalf("closing pipe: %v", err)
+	}
+	os.Stdout = old
+	data, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("reading captured stdout: %v", err)
+	}
+	return string(data)
+}
+
+func withArgs(t *testing.T, argv ...string) {
+	t.Helper()
+	argsCopy := make([]string, len(os.Args))
+	copy(argsCopy, os.Args)
+	t.Cleanup(func() { os.Args = argsCopy })
+	os.Args = append([]string{"llm_aggregator"}, argv...)
+}
+
+func TestParseArgs_HelpFlagHandled(t *testing.T) {
+	withArgs(t, "-h")
+
+	var out string
+	var args *Args
+	var handled bool
+	var err error
+	out = captureStdout(t, func() {
+		args, handled, err = ParseArgs()
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !handled {
+		t.Error("handled = false for -h, want true")
+	}
+	if args == nil {
+		t.Fatal("args = nil, want non-nil")
+	}
+	if !strings.Contains(out, "llm_aggregator") {
+		t.Errorf("help output %q missing program name", out)
+	}
+}
+
+func TestParseArgs_VersionFlagHandled(t *testing.T) {
+	withArgs(t, "--version")
+
+	var out string
+	var handled bool
+	var err error
+	out = captureStdout(t, func() {
+		_, handled, err = ParseArgs()
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !handled {
+		t.Error("handled = false for --version, want true")
+	}
+	if !strings.Contains(out, "llm_aggregator") {
+		t.Errorf("version output %q missing program name", out)
+	}
+}
+
+func TestParseArgs_NormalFlagsNotHandled(t *testing.T) {
+	withArgs(t, "--stdin", "--prompt", "Test prompt")
+
+	args, handled, err := ParseArgs()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if handled {
+		t.Error("handled = true for normal flags, want false")
+	}
+	if args == nil {
+		t.Fatal("args = nil, want non-nil")
 	}
 }

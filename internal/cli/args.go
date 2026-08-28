@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/alexflint/go-arg"
@@ -60,34 +61,42 @@ func (a *Args) Description() string {
 	return "LLM Aggregator - Aggregate RSS feeds and summarise with LLM API"
 }
 
-// ParseArgs parses command line arguments.
-func ParseArgs() (*Args, error) {
+// ParseArgs parses command line arguments. The handled return is true when a
+// meta-flag (-h/--help, --version) was processed: its output is already
+// written and the caller should exit 0. It never calls os.Exit so callers
+// keep control of the process lifetime.
+func ParseArgs() (*Args, bool, error) {
 	var args Args
+	handled, err := parseArgs(&args, os.Args, os.Stdout)
+	return &args, handled, err
+}
+
+func parseArgs(args *Args, argv []string, stdout io.Writer) (bool, error) {
 	parser, err := arg.NewParser(arg.Config{
 		Program: "llm_aggregator",
-	}, &args)
+	}, args)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
 	// Handle help and version flags before checking required fields
-	if len(os.Args) > 1 {
-		if os.Args[1] == "-h" || os.Args[1] == "--help" {
-			WriteHelp(&args, os.Stdout)
-			os.Exit(0)
+	if len(argv) > 1 {
+		if argv[1] == "-h" || argv[1] == "--help" {
+			WriteHelp(args, stdout)
+			return true, nil
 		}
-		if os.Args[1] == "--version" {
-			fmt.Printf("llm_aggregator v%s (built %s)", Version, BuildDate)
-			os.Exit(0)
+		if argv[1] == "--version" {
+			fmt.Fprintf(stdout, "llm_aggregator v%s (built %s)", Version, BuildDate)
+			return true, nil
 		}
 	}
 
-	err = parser.Parse(os.Args[1:])
+	err = parser.Parse(argv[1:])
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 
-	return &args, nil
+	return false, nil
 }
 
 // ToViperMap serialises Args to a viper key-value map.
