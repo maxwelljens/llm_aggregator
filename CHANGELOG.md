@@ -26,18 +26,45 @@ Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 - Dead code removed: `Article.ToMap`, the unused `Config` struct,
   `Runtime.Interrupted`/`WasInterrupted`/`Error`, unused style variables, and
   duplicated default values in help text and the LLM system prompt.
+- Feed fetching goes through the aggregator's own HTTP client (timeout,
+  User-Agent, context cancellation via errgroup) for both feeds and scraped
+  pages; `g.SetLimit` bounds concurrency instead of a hand-rolled semaphore.
+- Exit-code policy lives in a single `run` module; `os.Exit` now only happens
+  in `main`, and help/version handling in the CLI no longer exits the process.
+- The production LLM client is assembled once and injected as the
+  `Summariser`; `Runtime.Execute` no longer constructs it internally, and the
+  constructor takes an options struct. Environment-based API-key resolution
+  lives only in the config layer.
+- The `Progress` interface is split into `Logger` (logging) and
+  `StageReporter` (stage transitions); aggregator, processor and LLM client
+  accept the slimmer `Logger`.
+- Every configurable value is described once in a typed settings table that
+  drives viper defaults, env bindings, CLI precedence and `Runtime`
+  assembly; the `map[string]any` CLI bridge and its `isZero` helper are gone.
+- Content caps and the truncation suffix come from `internal/defaults`
+  instead of inline magic numbers; the scraped-page User-Agent no longer
+  hardcodes a stale version.
 
 ### Fixed
 
 - Deprecated `gofeed` `item.Author` replaced with `item.Authors`.
 - The duplicated date-sort comparator in the processor is a single helper.
+- TUI mode no longer discards the pipeline result: `--output-file` and output
+  formats work with `--tui`, pipeline failures exit 1, and SIGINT/SIGTERM
+  abort the in-flight LLM call and exit 130 just like the non-TUI path.
+- A run where every feed fails is reported as an error with per-feed
+  diagnoses instead of surfacing as a misleading "no articles found".
 
 ### Added
 
 - `Runtime.Execute` is now tested end-to-end: all four feed-source branches,
   dry-run, and summariser error propagation run against a fake summariser.
 - Coverage for LLM context rendering and message construction.
-
+- End-to-end tests for the run module's exit codes (missing API key, dry-run
+  outcomes, summariser failures) and for the CLI help/version paths.
+- Feed-fetch tests over `httptest`, covering the injected client, context
+  cancellation and total-failure reporting.
+- First tests for the `progress`, `tokeniser`, `style` and `tui` packages.
 ## [1.0.2] - 2026-05-04
 
 ### Changed
