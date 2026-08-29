@@ -103,7 +103,7 @@ func TestPromptParsing(t *testing.T) {
 		{
 			name:    "empty prompt",
 			prompt:  "",
-			wantErr: true, // Required field
+			wantErr: false, // Optional flag; config layer applies the default prompt
 		},
 		{
 			name:    "multiline prompt",
@@ -524,6 +524,17 @@ func withArgs(t *testing.T, argv ...string) {
 	copy(argsCopy, os.Args)
 	t.Cleanup(func() { os.Args = argsCopy })
 	os.Args = append([]string{"llm_aggregator"}, argv...)
+}
+
+// TestParseArgs_PromptNotRequired guards the default-prompt behaviour: the
+// user prompt falls back to the config-layer default, so go-arg must not
+// reject a command line that omits --prompt.
+func TestParseArgs_PromptNotRequired(t *testing.T) {
+	var args Args
+	_, err := parseArgs(&args, []string{"llm_aggregator", "--feeds-file", "feeds.txt"}, io.Discard)
+	if err != nil {
+		t.Fatalf("parse without --prompt failed: %v", err)
+	}
 }
 
 func TestParseArgs_HelpFlagHandled(t *testing.T) {

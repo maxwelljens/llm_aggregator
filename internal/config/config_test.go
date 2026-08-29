@@ -306,6 +306,9 @@ func TestViperToRuntimeFromArgs(t *testing.T) {
 		if rt.Output != defaults.DefaultOutput {
 			t.Errorf("Output = %q, want default", rt.Output)
 		}
+		if rt.Prompt != defaults.DefaultPrompt {
+			t.Errorf("Prompt = %q, want default", rt.Prompt)
+		}
 	})
 
 	t.Run("explicit flag overrides default", func(t *testing.T) {

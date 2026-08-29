@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator configuration file
-.TH LLM_AGGREGATOR 5 "27 April 2026" "1.0.0" "File Formats"
+.TH LLM_AGGREGATOR 5 "29 August 2026" "1.0.2" "File Formats"
 .SH NAME
 llm_aggregator.conf \- configuration file for llm_aggregator
 .SH DESCRIPTION
@@ -107,11 +107,13 @@ Default: 300
 Options related to the LLM system prompt.
 .TP
 .B prompt = \fI"string"\fR
-User prompt for summarisation/analysis. This is a required argument that
-instructs the LLM on what to do with the aggregated feed content.
+User prompt for summarisation/analysis. This instructs the LLM on what to
+do with the aggregated feed content.
 .br
-Note: This is a required command\-line argument and cannot be set via
-environment variable or config file.
+Note: Optional. When neither the config file, the
+.B LLM_AGGREGATOR_PROMPT
+environment variable, nor the \-\-prompt command\-line flag provides a
+prompt, a built-in summarisation prompt is used.
 .TP
 .B system_prompt = \fI"string"\fR
 Custom system prompt for the LLM. The system prompt instructs the AI on

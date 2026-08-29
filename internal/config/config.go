@@ -82,7 +82,7 @@ func viperSettings() []setting {
 		// Feed input
 		str("feeds_file", "", func(rt *runtime.Runtime, s string) { rt.FeedsFile = s },
 			providedStr(func(a *cli.Args) string { return a.FeedsFile })),
-		str("prompt", "", func(rt *runtime.Runtime, s string) { rt.Prompt = s },
+		str("prompt", defaults.DefaultPrompt, func(rt *runtime.Runtime, s string) { rt.Prompt = s },
 			providedStr(func(a *cli.Args) string { return a.Prompt })),
 		boolean("stdin", false, func(rt *runtime.Runtime, b bool) { rt.Stdin = b },
 			func(a *cli.Args) (bool, bool) { return a.Stdin, a.Stdin }),

@@ -57,6 +57,12 @@ Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 
 ### Added
 
+- `--prompt` is now optional: when no prompt is provided via CLI, the
+  `LLM_AGGREGATOR_PROMPT` environment variable or the `prompt` config key, a
+  built-in summarisation prompt is used. This also makes the environment
+  variable and config key reachable for the first time; previously go-arg
+  rejected any run without the flag before configuration was read.
+
 - `Runtime.Execute` is now tested end-to-end: all four feed-source branches,
   dry-run, and summariser error propagation run against a fake summariser.
 - Coverage for LLM context rendering and message construction.
@@ -65,6 +71,7 @@ Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 - Feed-fetch tests over `httptest`, covering the injected client, context
   cancellation and total-failure reporting.
 - First tests for the `progress`, `tokeniser`, `style` and `tui` packages.
+
 ## [1.0.2] - 2026-05-04
 
 ### Changed

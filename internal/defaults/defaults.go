@@ -41,3 +41,7 @@ const DefaultSystemPrompt = `You are an expert analyst and summariser.
 You analyse content from multiple sources and provide
 concise, insightful summaries based on user requests.
 Focus on key points, trends, and important information.`
+
+// DefaultPrompt is the default user prompt sent to the LLM when --prompt is
+// not provided.
+const DefaultPrompt = "Summarise the following articles, highlighting the key points, common themes and notable developments across sources."

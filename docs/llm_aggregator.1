@@ -1,5 +1,5 @@
 .\" Man page for llm_aggregator
-.TH LLM_AGGREGATOR 1 "27 April 2026" "1.0.0" "User Commands"
+.TH LLM_AGGREGATOR 1 "29 August 2026" "1.0.2" "User Commands"
 .SH NAME
 llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
 .SH SYNOPSIS
@@ -7,8 +7,6 @@ llm_aggregator \- aggregate RSS feeds and summarise them with LLMs
 [\fIOPTIONS\fR]
 .B \-f
 \fIFILE\fR
-.B \-p
-\fIPROMPT\fR
 .SH DESCRIPTION
 .B llm_aggregator
 is a command\-line utility that fetches articles from multiple RSS feeds,
@@ -51,10 +49,6 @@ to avoid overwhelming feed servers.
 .TP
 .B \-f\fR,\fB -f \fIFILE\fR
 Path to a file containing RSS feed URLs, one per line.
-.TP
-.B \-p\fR,\fB -p \fIPROMPT\fR
-User prompt for summarisation or analysis. This is sent to the LLM along
-with the article content.
 .SH OPTIONS
 .SS Feed Input
 .TP
@@ -121,6 +115,14 @@ LLM request timeout in seconds. If the LLM API call takes longer than
 this, the request is aborted and an error is returned.
 .br
 Default: 300
+.TP
+.B \-p\fR,\fB \-\-prompt \fIPROMPT\fR
+User prompt for summarisation or analysis. This is sent to the LLM along
+with the article content.
+.br
+Default: a built-in summarisation prompt
+("Summarise the following articles, highlighting the key points, common
+themes and notable developments across sources.")
 .TP
 .B \-\-system\-prompt TEXT
 .B \-\-system\-prompt \fITEXT\fR
@@ -209,6 +211,10 @@ API base URL (default: "https://api.deepseek.com")
 .TP
 .B LLM_AGGREGATOR_MODEL
 Model name (default: "deepseek-chat")
+.TP
+.B LLM_AGGREGATOR_PROMPT
+User prompt for summarisation or analysis (default: built-in
+summarisation prompt)
 .TP
 .B LLM_AGGREGATOR_MAX_TOKENS
 Maximum tokens in response (default: 4000)

@@ -18,7 +18,7 @@ type Args struct {
 	// Feed input
 	FeedsFile string `arg:"-f,--feeds-file" help:"Path to file containing RSS feed URLs (one per line)"`
 	Stdin     bool   `arg:"--stdin" help:"Read a single RSS/Atom feed from stdin (can be combined with --feeds-file)"`
-	Prompt    string `arg:"-p,--prompt,required" help:"User prompt for summarisation/analysis"`
+	Prompt    string `arg:"-p,--prompt" help:"User prompt for summarisation/analysis (default: built-in summarisation prompt)"`
 
 	// Feed aggregation options
 	MaxArticlesPerFeed *int `arg:"-n,--max-articles-per-feed" help:"Maximum articles to fetch from each feed"`
