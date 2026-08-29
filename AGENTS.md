@@ -34,39 +34,42 @@ goreleaser build --clean
 ```
 main.go (entry point)
         ↓
+    cli.ParseArgs() → (*Args, handled bool, err)   ← go-arg; help/version handled here
+        ↓
     signals.New() → Watch()        ← signal setup before any blocking call
         ↓
-    cli.ParseArgs()               ← go-arg for CLI parsing
+    config.GetViper() → ViperToRuntime(v, args)    ← settings table, config precedence
         ↓
-    config.GetViper()             ← Viper singleton (config precedence)
-        ↓
-    config.ViperToRuntime()       ← Converts config → Runtime struct
-        ↓
+    run(rt, args, sh, stdout, stderr) int          ← path selection + exit-code policy
+        ├── dry-run: rt.DryRun = true → Runtime.Execute(ctx) skips the LLM call
+        ├── otherwise: run() injects llm.NewLLMClient(llm.Options{...}) as rt.Summariser
+        └── TUI → runWithTUI   |   non-TUI → runWithoutTUI
+                ↓
     Runtime.Execute(ctx) → (Result, error):
-        ├── aggregator.ParseFeedsFromFile()  ← Concurrent feed fetching
-        ├── processor.ProcessArticles()      ← Filter, sort, limit, truncate
-        ├── llm.SummariseArticles(ctx)       ← LLM API call (ctx propagated)
+        ├── aggregator.ParseFeedsFromFile(ctx)   ← concurrent, context-aware fetching
+        ├── processor.ProcessArticles()          ← filter, sort, limit, truncate
+        ├── summariser.SummariseArticles(ctx)    ← injected Summariser, ctx propagated
         └── Result{Articles, Summary, TokenEstimate}
               ↓
-    output.Formatter.FormatData(Data)    ← Format output
+    rt.WriteOutput(stdout, result) → output.Formatter.FormatData(Data)
 ```
 
-The context `ctx` passed through `Execute()` carries the cancellation signal. When a signal arrives, `cancel()` is called and the LLM HTTP request aborts mid-flight. `Result.Summary` is written to stdout before `os.Exit(130)`. Dry-run is `Runtime.DryRun = true` — the same pipeline skips the LLM call and returns the processed articles. Tests inject a `runtime.Summariser` fake to exercise `Execute` end-to-end without a network call.
+Only `main` calls `os.Exit`; `run()` and every `run*` path return an exit code (0 success, 1 error, 130 signal). The TUI path runs the same pipeline through a `tui.ExecuteFunc` and writes output after the program exits, with identical exit-code semantics. The context `ctx` passed through `Execute()` carries the cancellation signal; when a signal arrives, `cancel()` is called and the LLM HTTP request aborts mid-flight, with any partial summary still written to stdout before exit 130. Tests inject a `runtime.Summariser` fake to exercise `Execute` end-to-end without a network call.
 
 ## Key Packages
 
 | Package | Purpose |
 |---------|---------|
-| `internal/aggregator` | RSS/Atom/JSON feed parsing via gofeed, concurrent fetching with semaphore (maxConcurrency=10) |
+| `internal/aggregator` | RSS/Atom/JSON feed parsing via gofeed; context-aware fetching through one injected HTTP client (`ParseFeed(ctx, url)`), concurrency capped by errgroup `SetLimit(maxFeedConcurrency=10)` |
 | `internal/processor` | Article filtering (keyword include/exclude), sorting (date/title/source), truncation |
-| `internal/llm` | OpenAI-compatible API client using openai-go, system/user message construction |
-| `internal/runtime` | Orchestrates the pipeline via `Execute(ctx) (Result, error)`; `Summariser` seam for testability |
-| `internal/tui` | Bubbletea-based TUI with markdown rendering via glamour |
+| `internal/llm` | OpenAI-compatible API client; constructed via `NewLLMClient(Options)` — no env fallback inside the package (config layer owns that) |
+| `internal/runtime` | Orchestrates the pipeline via `Execute(ctx) (Result, error)`; `Summariser` is injected (nil + non-dry-run is a hard error) |
+| `internal/tui` | Bubbletea TUI with markdown rendering via glamour; `New(execute ExecuteFunc, ctx)` and `FinalResult()` hand the pipeline outcome back to `main` |
 | `internal/config` | Viper-based config with precedence: CLI > env vars > config file > defaults |
-| `internal/cli` | go-arg struct-based CLI parsing |
-| `internal/defaults` | Central default constants (model, baseURL, tokens, etc.) |
+| `internal/cli` | go-arg struct-based CLI parsing; `ParseArgs()` returns `(*Args, handled bool, error)` and `WriteHelp` takes an `io.Writer` |
+| `internal/defaults` | Central default constants (model, baseURL, tokens, content caps, truncated suffix, etc.) |
 | `internal/output` | Formatter for text/markdown/json output |
-| `internal/progress` | Progress interface with implementations: NoopLogger, SimpleLogger, TUIProgress |
+| `internal/progress` | `Logger` (Logf/Warningf/Debugf) + `StageReporter` (typed stage updates); `Progress` = both. Implementations: NoopLogger, SimpleLogger |
 | `internal/tokeniser` | tiktoken-based token counting for accurate estimation |
 | `internal/signals` | Signal handling for graceful shutdown (SIGINT, SIGTERM, SIGHUP) |
 
@@ -77,7 +80,7 @@ The context `ctx` passed through `Execute()` carries the cancellation signal. Wh
 3. Config file (`~/.config/llm_aggregator/config.toml`)
 4. Defaults (from `internal/defaults`)
 
-**Critical**: CLI args use `isZero()` check — if a flag isn't passed, its value doesn't override config file/env values. Pointer types (`*int`, `*string`) are used for CLI flags to detect explicit provision vs. default.
+**Critical**: CLI flags are only applied when explicitly provided. The config package keeps a single settings table (`viperSettings()`) where every knob is declared once (key, env name derived as `LLM_AGGREGATOR_` + upper key, default, Runtime applier, CLI extractor). The CLI extractor uses pointer-presence semantics: `*int`/`*string` flags apply only when non-nil, so `--temperature 0` overrides but an absent flag does not.
 
 ## Gotchas and Non-Obvious Patterns
 
@@ -99,16 +102,16 @@ https://example.com/feed3
 ```
 
 ### 3. FeedAggregator Error Handling
-`ParseFeedsFromFile()` continues processing other feeds if one fails. Errors are collected in a `feedErrors` slice and logged as a warning. Only fatal errors (like inability to open the feeds file) cause immediate failure.
+`ParseFeedsFromFile(ctx)` continues processing other feeds if one fails. Per-feed errors are collected and logged as a warning, and a cancelled context short-circuits the loop. If **all** feeds fail, the call returns an error (`"none of the %d feeds could be fetched: ..."`) instead of silently producing zero articles. Only fatal errors (like inability to open the feeds file) fail immediately.
 
 ### 4. Article Data Flow
 `aggregator.Article` is the single typed currency for the whole pipeline: aggregator produces it, processor filters/sorts/truncates it in place, and the LLM and output formatter read its fields directly. The output formatter takes a typed `output.Data` envelope. No `map[string]any` crosses package seams.
 
-### 5. Progress Interface
-Components receive `progress.Progress` directly; nil defaults to `NoopLogger` in constructors. Pipeline stages are typed constants (`progress.StageAggregating`, …) shared with the TUI:
+### 5. Progress Interfaces
+Progress is split into two seams: `progress.Logger` (Logf/Warningf/Debugf) and `progress.StageReporter` (SetStage/SetSubStage/SetArticleCount/SetTokenEstimate with typed `Stage` constants shared with the TUI). Components take `progress.Logger` directly; nil defaults to `NoopLogger` in constructors, and `SimpleLogger` embeds a `noStages` adapter so log-only loggers need no stage stubs:
 - `NoopLogger` (default) — no output
 - `SimpleLogger` — stdout logging (verbose mode)
-- `TUIProgress` — tea messages for TUI updates
+- `TUIProgress` — tea messages for TUI updates (implements full `Progress`)
 
 ### 6. Token Estimation
 `processor.EstimateTokenCount()` uses tiktoken for accurate counting. Models are mapped to encoding names via `tokeniser.EncodingForModel()`. Unknown models fall back to rough char-based estimation.
@@ -125,10 +128,10 @@ The TUI uses `charm.glamour` for markdown rendering in the terminal. It supports
 ### 9. Content Extraction Fallback
 When feed items lack full content, `aggregator.fetchWebpageContent()` scrapes the article URL using goquery with article/main/.article-content selectors as fallbacks.
 
-### 10. Signal Handling
-`main.go` sets up `signals.New()` before any blocking call. `SignalHandler.Watch()` installs a handler for SIGINT, SIGTERM, SIGHUP via `signal.Notify` — disabling Go's default exit behaviour for those signals.
+### 10. Signal Handling and Exit-Code Ownership
+`main.go` sets up `signals.New()` before any blocking call. `SignalHandler.Watch()` installs a handler for SIGINT, SIGTERM, SIGHUP via `signal.Notify` — disabling Go's default exit behaviour for those signals. The non-TUI path and the TUI path both derive a cancellable context from `sh.Done()` so signals abort the in-flight LLM request; after a `tea.Program` exits, `runWithTUI` pulls the outcome via `model.FinalResult()` and applies the same output/exit-code rules as the non-TUI path.
 
-The signal path:
+The signal path (non-TUI):
 ```
 SIGINT/SIGTERM/SIGHUP → sh.notify channel → Watch() goroutine: close(sh.Done())
   → runWithoutTUI goroutine: <-sh.Done() → cancel()
@@ -137,7 +140,7 @@ SIGINT/SIGTERM/SIGHUP → sh.notify channel → Watch() goroutine: close(sh.Done
     → runWithoutTUI: partial result.Summary written → exit 130
 ```
 
-`llm.SummariseArticles()` receives the context from `Runtime.Execute()`, and `callAPIWithMessages()` passes it to `dc.client.Chat.Completions.New()`. The HTTP client aborts on context cancellation.
+`llm.SummariseArticles()` receives the context from `Runtime.Execute()`, and `callAPIWithMessages()` passes it to the openai-go completion call. The HTTP client aborts on context cancellation.
 
 
 Exit codes: 0 = success, 1 = error, 130 = signal termination (128 + signal number, per UNIX convention).
@@ -167,7 +170,7 @@ for _, tt := range tests {
 ```
 
 ### Error Handling Patterns
-- Feed errors are collected and logged, not fatal
+- Feed errors are collected and logged; only when every feed fails does `Execute` error out
 - Fatal errors (bad config, missing files) exit with code 1
 - API errors have specific messages (401 = bad key, 429 = rate limit, etc.)
 
